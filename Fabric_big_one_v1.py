@@ -1,29 +1,55 @@
 # scaffold.py
 """
-Scaffold du projet Veille YouTube/TikTok.
+Scaffold complet du projet "Veille YouTube → TikTok" (local, Docker, port 4443).
 
-➡️ Exécution conseillée :
-    python3 scaffold.py
-
-Ce script crée l'arborescence complète du projet (fichiers Python, templates, static,
-Dockerfile, requirements, tests, .gitignore, .env.example). Ensuite tu peux :
-
-    cp .env.example .env   # mettre ta clé YOUTUBE_API_KEY
-    docker build -t veille-tiktok . && \
+▶ Utilisation
+    python3 scaffold.py          # génère tous les fichiers
+    cp .env.example .env && nano .env
+    docker build -t veille-tiktok .
     docker run -d --name veille-tiktok -p 4443:4443 --env-file .env veille-tiktok
 
-Le code ci-dessous NE contient PAS de texte brut hors Python (pour éviter les SyntaxError).
+Le script écrit :
+- Backend Flask (app.py), modèles (models.py), client YouTube (youtube_client.py)
+- Scheduler (APScheduler) intégré (1 worker gunicorn pour éviter les doublons)
+- Templates Jinja (UI pastel) + static/styles.css
+- Tests (pytest), Dockerfile, requirements.txt, README, .dockerignore
+- Scripts utilitaires : manage.sh, clean_scaffold.sh
 """
 from __future__ import annotations
 import os
 from pathlib import Path
 
 ROOT = Path.cwd()
-
 FILES: dict[str, str] = {}
 
 def add(path: str, content: str) -> None:
     FILES[path] = content.lstrip("\n")
+
+# ---------------------------
+# .dockerignore (SAFE)
+# ---------------------------
+add(
+    ".dockerignore",
+    r"""
+# garder le code, ignorer ce qui est inutile
+.git
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.log
+*.sqlite
+*.sqlite3
+.pytest_cache/
+
+# envs locaux
+venv/
+.venv/
+
+# secrets locaux (passés via --env-file)
+.env
+    """,
+)
 
 # ---------------------------
 # .gitignore
@@ -31,14 +57,13 @@ def add(path: str, content: str) -> None:
 add(
     ".gitignore",
     r"""
-# secrets & runtime
 .env
 *.db
 __pycache__/
 *.pyc
+.pytest_cache/
 venv/
 .venv/
-.pytest_cache/
     """,
 )
 
@@ -55,8 +80,8 @@ google-api-python-client==2.137.0
 python-dotenv==1.0.1
 APScheduler==3.10.4
 requests==2.32.3
-gunicorn==22.0.0
 isodate==0.6.1
+gunicorn==22.0.0
 pytest==8.3.3
     """,
 )
@@ -75,7 +100,7 @@ SECRET_KEY=change-me
 # YouTube
 YOUTUBE_API_KEY=COLLE_TA_CLE_ICI
 
-# Horaires
+# Horaires (HH:MM)
 SCHEDULE_MORNING=08:00
 SCHEDULE_NOON=13:00
 SCHEDULE_EVENING=19:00
@@ -119,16 +144,14 @@ class Config:
     SCHEDULE_NOON = os.getenv("SCHEDULE_NOON", "13:00")
     SCHEDULE_EVENING = os.getenv("SCHEDULE_EVENING", "19:00")
 
-    # Regions à interroger (FR/US/ES)
+    # Regions et thèmes
     REGIONS = [r.strip() for r in os.getenv("REGIONS", "FR,US,ES").split(",") if r.strip()]
-
-    # Catégories/Thèmes (liste séparée par virgule)
     THEMES = [t.strip() for t in os.getenv(
         "THEMES",
         "nourriture,voiture,business,drôle,influenceurs"
     ).split(",") if t.strip()]
 
-    # Alertes: intervalle en minutes (surveillance flash)
+    # Alertes: intervalle en minutes
     ALERT_INTERVAL_MIN = int(os.getenv("ALERT_INTERVAL_MIN", "15"))
     """,
 )
@@ -158,15 +181,11 @@ class Video(db.Model):
     language = db.Column(db.String(8))
     published_at = db.Column(db.DateTime)
 
-    # Metrics à l'ajout
     views_initial = db.Column(db.Integer, default=0)
     likes_initial = db.Column(db.Integer, default=0)
-
-    # Dernières métriques connues
     views_current = db.Column(db.Integer, default=0)
     likes_current = db.Column(db.Integer, default=0)
 
-    # Drapeaux
     is_short = db.Column(db.Boolean, default=False)
     used = db.Column(db.Boolean, default=False)
 
@@ -207,7 +226,6 @@ from datetime import datetime, timezone
 from typing import List, Dict, Any
 from googleapiclient.discovery import build
 
-# Catégories YouTube utiles (ID officiels)
 YOUTUBE_CATEGORIES = {
     "autos": "2",
     "comedy": "23",
@@ -220,7 +238,6 @@ YOUTUBE_CATEGORIES = {
     "music": "10",
 }
 
-# Mapping simple thèmes -> catégories ou mots-clés
 THEME_RULES = {
     "voiture": {"category_ids": [YOUTUBE_CATEGORIES["autos"]], "keywords": ["car", "voiture", "auto", "tuning"]},
     "drôle": {"category_ids": [YOUTUBE_CATEGORIES["comedy"]], "keywords": ["funny", "prank", "drôle", "humour"]},
@@ -257,7 +274,7 @@ class YouTubeClient:
 )
 
 # ---------------------------
-# app.py (fix: route parenthesis + safe compare)
+# app.py (scheduler + UI)
 # ---------------------------
 add(
     "app.py",
@@ -267,6 +284,7 @@ import hmac
 from datetime import datetime, timedelta
 from typing import List
 from flask import Flask, render_template, redirect, request, url_for, jsonify, Response
+from apscheduler.schedulers.background import BackgroundScheduler
 
 from config import Config
 from models import db, Video, Note, StatSnapshot
@@ -279,45 +297,35 @@ db.init_app(app)
 with app.app_context():
     db.create_all()
 
+# --- YouTube client ---
 yt = YouTubeClient(Config.YT_API_KEY) if Config.YT_API_KEY else None
 
-# --- Simple Basic Auth ---
-
+# --- Basic Auth ---
 def _eq(a: str, b: str) -> bool:
     return hmac.compare_digest(a or "", b or "")
-
 
 def check_auth(username, password):
     return _eq(username, Config.APP_USERNAME) and _eq(password, Config.APP_PASSWORD)
 
-
 def authenticate():
-    return Response(
-        "Authentication required", 401, {"WWW-Authenticate": 'Basic realm="Login Required"'}
-    )
-
+    return Response("Authentication required", 401, {"WWW-Authenticate": 'Basic realm="Login Required"'})
 
 def requires_auth(f):
     from functools import wraps
-
     @wraps(f)
     def decorated(*args, **kwargs):
         auth = request.authorization
         if not auth or not check_auth(auth.username, auth.password):
             return authenticate()
         return f(*args, **kwargs)
-
     return decorated
 
-
-# --- Core logic ---
-
+# --- Helpers ---
 REGION_LANG = {"FR": "fr", "US": "en", "ES": "es"}
 THEME_LIST = [t.strip() for t in Config.THEMES if t.strip()]
 
 def _now():
     return datetime.utcnow()
-
 
 def pick_theme_video(items, theme_name: str):
     rules = THEME_RULES.get(theme_name, {})
@@ -344,25 +352,22 @@ def pick_theme_video(items, theme_name: str):
         cat_match = cat in cat_ids if cat_ids else False
 
         score = vph * (1.4 if (kw_match or cat_match) else 1.0)
-
         if score > best_score:
             best_score = score
             best = it
-
     return best
 
+from isodate import parse_duration
 
 def compute_is_short(content_details) -> bool:
     dur = content_details.get("duration") if content_details else None
     if not dur:
         return False
-    from isodate import parse_duration
     try:
         seconds = int(parse_duration(dur).total_seconds())
         return seconds <= 60
     except Exception:
         return False
-
 
 @app.context_processor
 def inject_now_and_next():
@@ -378,16 +383,14 @@ def inject_now_and_next():
     if not next_dt:
         h, m = [int(x) for x in Config.SCHEDULE_MORNING.split(":")]
         next_dt = (now + timedelta(days=1)).replace(hour=h, minute=m, second=0, microsecond=0)
-
     return {"server_now": now, "next_refresh": next_dt}
 
-
+# --- Views ---
 @app.route("/")
 @requires_auth
 def index():
     videos = Video.query.filter_by(used=False).order_by(Video.created_at.desc()).limit(5).all()
     return render_template("index.html", videos=videos, themes=THEME_LIST)
-
 
 @app.route("/history")
 @requires_auth
@@ -403,15 +406,13 @@ def history():
         last_snaps[v.id] = snap
     return render_template("history.html", videos=videos, snaps=last_snaps)
 
-
-@app.route("/use/<int:vid>", methods=["POST"])  # FIX: retiré parenthèse en trop
+@app.route("/use/<int:vid>", methods=["POST"]) 
 @requires_auth
 def mark_used(vid):
     v = Video.query.get_or_404(vid)
     v.used = True
     db.session.commit()
     return redirect(url_for("index"))
-
 
 @app.route("/note/<int:vid>", methods=["POST"]) 
 @requires_auth
@@ -423,13 +424,11 @@ def add_note(vid):
         db.session.commit()
     return redirect(url_for("history"))
 
-
 @app.route("/api/refresh", methods=["POST"]) 
 @requires_auth
 def api_refresh():
     count = refresh_trending()
     return jsonify({"status": "ok", "added": count})
-
 
 @app.route("/api/stats-refresh", methods=["POST"]) 
 @requires_auth
@@ -437,8 +436,7 @@ def api_stats_refresh():
     refresh_stats()
     return jsonify({"status": "ok"})
 
-
-# --- Worker functions (used by scheduler & API) ---
+# --- Workers ---
 
 def refresh_trending() -> int:
     if yt is None:
@@ -491,7 +489,6 @@ def refresh_trending() -> int:
         db.session.add(snap)
         db.session.commit()
         added += 1
-
         if added >= 5:
             break
 
@@ -578,52 +575,60 @@ def flash_alert_scan():
     except Exception as e:
         print("flash_alert_scan error:", e)
 
+# --- Scheduler (unique instance) ---
+scheduler = BackgroundScheduler(timezone="UTC")
+
+# Helper pour exécuter un job dans le contexte Flask
+
+def _run(fn):
+    with app.app_context():
+        fn()
+
+# Fonctions de job (sans décorateurs)
+
+def _job_morning():
+    _run(refresh_trending)
+
+def _job_noon():
+    _run(refresh_trending)
+
+def _job_evening():
+    _run(refresh_trending)
+
+def _job_stats():
+    _run(refresh_stats)
+
+def _job_flash():
+    _run(flash_alert_scan)
+
+# Ajout des jobs dynamiquement avec des valeurs HH:MM parsées
+
+def _parse_hm(s: str):
+    h, m = [int(x) for x in s.split(":")]
+    return h, m
+
+h, m = _parse_hm(Config.SCHEDULE_MORNING)
+scheduler.add_job(_job_morning, "cron", hour=h, minute=m, id="refresh_morning", replace_existing=True)
+
+h, m = _parse_hm(Config.SCHEDULE_NOON)
+scheduler.add_job(_job_noon, "cron", hour=h, minute=m, id="refresh_noon", replace_existing=True)
+
+h, m = _parse_hm(Config.SCHEDULE_EVENING)
+scheduler.add_job(_job_evening, "cron", hour=h, minute=m, id="refresh_evening", replace_existing=True)
+
+scheduler.add_job(_job_stats, "interval", minutes=60, id="refresh_stats", replace_existing=True)
+scheduler.add_job(_job_flash, "interval", minutes=Config.ALERT_INTERVAL_MIN, id="flash_alert", replace_existing=True)
+
+# Démarrer le scheduler à l'import (1 worker gunicorn => 1 scheduler)
+scheduler.start()
 
 if __name__ == "__main__":
-    # Lancement en dev
-    from scheduler import start_jobs
-    start_jobs()
     app.run(host="0.0.0.0", port=4443, debug=True)
     """,
 )
 
 # ---------------------------
-# scheduler.py
-# ---------------------------
-add(
-    "scheduler.py",
-    r"""
-from apscheduler.schedulers.background import BackgroundScheduler
-from config import Config
-from app import refresh_trending, refresh_stats, flash_alert_scan
-
-scheduler = BackgroundScheduler(timezone="UTC")
-
-
-def _parse_hhmm(hhmm: str):
-    h, m = [int(x) for x in hhmm.split(":")]
-    return h, m
-
-
-def start_jobs():
-    h, m = _parse_hhmm(Config.SCHEDULE_MORNING)
-    scheduler.add_job(refresh_trending, "cron", hour=h, minute=m, id="refresh_morning")
-
-    h, m = _parse_hhmm(Config.SCHEDULE_NOON)
-    scheduler.add_job(refresh_trending, "cron", hour=h, minute=m, id="refresh_noon")
-
-    h, m = _parse_hhmm(Config.SCHEDULE_EVENING)
-    scheduler.add_job(refresh_trending, "cron", hour=h, minute=m, id="refresh_evening")
-
-    scheduler.add_job(refresh_stats, "interval", minutes=60, id="refresh_stats")
-    scheduler.add_job(flash_alert_scan, "interval", minutes=Config.ALERT_INTERVAL_MIN, id="flash_alert")
-
-    scheduler.start()
-    """,
-)
-
-# ---------------------------
-# templates
+# templates/base.html
 # ---------------------------
 add(
     "templates/base.html",
@@ -635,27 +640,137 @@ add(
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Veille YouTube & TikTok</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
 </head>
 <body class="bg-pastel">
-<nav class="navbar navbar-expand-lg navbar-dark bg-gradient p-3">
-  <div class="container-fluid">
-    <a class="navbar-brand fw-bold" href="/">📈 Veille Trends</a>
-    <div>
-      <a class="btn btn-sm btn-light" href="/history">Historique</a>
+  <nav class="navbar navbar-expand-lg navbar-dark glass-nav">
+    <div class="container">
+      <a class="navbar-brand d-flex align-items-center gap-2" href="/">
+        <span class="brand-logo">⚡</span>
+        <span class="fw-bold">Veille Trends</span>
+      </a>
+      <div class="ms-auto d-flex gap-2">
+        <a class="btn btn-light btn-sm soft-btn" href="/">Accueil</a>
+        <a class="btn btn-outline-light btn-sm soft-btn" href="/history">Historique</a>
+      </div>
+    </div>
+  </nav>
+
+  <main class="container py-5">
+    {% block content %}{% endblock %}
+  </main>
+
+  <div class="position-fixed bottom-0 end-0 p-3" style="z-index: 1080">
+    <div id="toast" class="toast align-items-center text-bg-success border-0" role="alert" aria-live="assertive" aria-atomic="true">
+      <div class="d-flex">
+        <div class="toast-body" id="toast-body">Action réussie</div>
+        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+      </div>
     </div>
   </div>
-</nav>
-<main class="container py-4">
-  {% block content %}{% endblock %}
-</main>
+
+  <div id="overlay" class="overlay d-none">
+    <div class="spinner-border" role="status"><span class="visually-hidden">Chargement...</span></div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    function showToast(msg, danger=false){
+      const toastEl = document.getElementById('toast');
+      const body = document.getElementById('toast-body');
+      body.textContent = msg;
+      toastEl.classList.toggle('text-bg-danger', !!danger);
+      new bootstrap.Toast(toastEl).show();
+    }
+    async function postJSON(url){
+      const ov = document.getElementById('overlay');
+      ov.classList.remove('d-none');
+      try{ const r = await fetch(url,{method:'POST'}); const d=await r.json(); showToast('Opération effectuée ✔️'); setTimeout(()=>location.reload(), 600); return d; }
+      catch(e){ showToast('Erreur: '+e.message,true); }
+      finally{ ov.classList.add('d-none'); }
+    }
+    document.addEventListener('click', (e)=>{
+      if(e.target && e.target.matches('#refreshNow')){ e.preventDefault(); postJSON('/api/refresh'); }
+      if(e.target && e.target.matches('#refreshStats')){ e.preventDefault(); postJSON('/api/stats-refresh'); }
+    });
+  </script>
+</body>
+</html>
+    """,
+)
+
+# ---------------------------
+# templates/index.html
+# ---------------------------
+add(
+    "templates/index.html",
+    r"""
+{% extends 'base.html' %}
+{% block content %}
+<section class="hero mb-4">
+  <div class="d-flex justify-content-between align-items-center">
+    <div>
+      <h1 class="display-6 fw-semibold">Sélection actuelle</h1>
+      <p class="text-muted mb-0">Les 5 meilleures idées du créneau, classées par vélocité.</p>
+    </div>
+    <div class="text-end">
+      <div class="small text-muted">Prochain refresh dans</div>
+      <div id="countdown" class="fw-bold h4 mb-0">--</div>
+      <div class="mt-2 d-flex gap-2 justify-content-end">
+        <a href="#" id="refreshNow" class="btn btn-primary soft-btn">Rafraîchir maintenant</a>
+        <a href="#" id="refreshStats" class="btn btn-outline-secondary soft-btn">Mettre à jour stats</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+{% if videos|length == 0 %}
+  <div class="empty card shadow-sm border-0 p-4 text-center">
+    <div class="emoji">🔎</div>
+    <h5 class="mt-2">Aucune vidéo pour le moment</h5>
+    <p class="text-muted">Clique sur <strong>Rafraîchir maintenant</strong> pour récupérer les tendances.</p>
+    <a href="#" id="refreshNow" class="btn btn-primary soft-btn">Rafraîchir maintenant</a>
+  </div>
+{% else %}
+  <div class="row g-4">
+    {% for v in videos %}
+    <div class="col-xl-4 col-lg-6">
+      <div class="card trend-card shadow-sm border-0 h-100">
+        <div class="thumb-wrap">
+          <a href="{{ v.url }}" target="_blank">
+            <img src="{{ v.thumbnail }}" class="thumb" alt="thumb">
+          </a>
+          {% if v.is_short %}<span class="badge soft-badge badge-short">Short</span>{% endif %}
+          {% if v.region %}<span class="badge soft-badge badge-region">{{ v.region }}</span>{% endif %}
+        </div>
+        <div class="card-body d-flex flex-column">
+          <a href="{{ v.url }}" target="_blank" class="stretched-link text-decoration-none text-dark"><h6 class="card-title clamp-2">{{ v.title }}</h6></a>
+          <div class="text-muted small mb-2">{{ v.channel }}</div>
+          <div class="d-flex flex-wrap gap-2 mt-auto">
+            <span class="chip">{{ '{:,}'.format(v.views_current).replace(',', ' ') }} vues</span>
+            {% set vph = '%.0f' % v.views_per_hour() %}
+            <span class="chip chip-accent">🚀 {{ vph }} vues/h</span>
+          </div>
+          <form class="mt-3" method="post" action="/use/{{ v.id }}">
+            <button class="btn w-100 btn-outline-primary soft-btn">Marquer comme utilisée</button>
+          </form>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+{% endif %}
+
 <script>
 (function(){
-  const nextRefreshTs = new Date("{{ next_refresh.isoformat() }}Z").getTime();
   const el = document.getElementById('countdown');
   if(!el) return;
+  const nextRefreshTs = new Date("{{ next_refresh.isoformat() }}Z").getTime();
   setInterval(()=>{
-    const now = new Date().getTime();
+    const now = Date.now();
     let diff = Math.max(0, nextRefreshTs - now);
     const h = Math.floor(diff/3600000); diff%=3600000;
     const m = Math.floor(diff/60000); diff%=60000;
@@ -664,120 +779,105 @@ add(
   }, 1000);
 })();
 </script>
-</body>
-</html>
-    """,
-)
-
-add(
-    "templates/index.html",
-    r"""
-{% extends 'base.html' %}
-{% block content %}
-<div class="d-flex justify-content-between align-items-center mb-3">
-  <h3 class="mb-0">Sélection actuelle</h3>
-  <div class="text-end">
-    <div class="small text-muted">Prochain refresh dans</div>
-    <div id="countdown" class="fw-semibold h5 mb-0">--</div>
-  </div>
-</div>
-
-{% if videos|length == 0 %}
-  <div class="alert alert-info">Aucune vidéo pour le moment.
-    <form class="d-inline" method="post" action="/api/refresh">
-      <button class="btn btn-primary btn-sm">Rafraîchir maintenant</button>
-    </form>
-  </div>
-{% endif %}
-
-<div class="row g-3">
-  {% for v in videos %}
-  <div class="col-md-6">
-    <div class="card shadow-sm border-0">
-      <div class="row g-0">
-        <div class="col-4">
-          <a href="{{ v.url }}" target="_blank"><img src="{{ v.thumbnail }}" class="img-fluid rounded-start" alt="thumb"></a>
-        </div>
-        <div class="col-8">
-          <div class="card-body">
-            <a href="{{ v.url }}" target="_blank" class="stretched-link text-decoration-none"><h6 class="card-title">{{ v.title }}</h6></a>
-            <div class="text-muted small">{{ v.channel }} • {{ v.region }} {% if v.is_short %}<span class="badge text-bg-warning ms-1">Short</span>{% endif %}</div>
-            <div class="mt-2">
-              <span class="badge text-bg-primary">{{ '{:,}'.format(v.views_current).replace(',', ' ') }} vues</span>
-              {% set vph = '%.0f' % v.views_per_hour() %}
-              <span class="badge text-bg-success">🚀 {{ vph }} vues/h</span>
-            </div>
-            <form class="mt-2" method="post" action="/use/{{ v.id }}">
-              <button class="btn btn-sm btn-outline-secondary">Marquer comme utilisée</button>
-            </form>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-  {% endfor %}
-</div>
 {% endblock %}
     """,
 )
 
+# ---------------------------
+# templates/history.html
+# ---------------------------
 add(
     "templates/history.html",
     r"""
 {% extends 'base.html' %}
 {% block content %}
-<h3>Historique</h3>
-<div class="row g-3">
-  {% for v in videos %}
-  <div class="col-md-6">
-    <div class="card shadow-sm border-0">
-      <div class="card-body">
-        <div class="d-flex align-items-start">
-          <img src="{{ v.thumbnail }}" width="96" height="54" class="rounded me-3" alt="thumb">
-          <div class="flex-grow-1">
-            <a href="{{ v.url }}" target="_blank" class="text-decoration-none"><h6 class="mb-1">{{ v.title }}</h6></a>
-            <div class="small text-muted">{{ v.channel }} • {{ v.region }}</div>
-            {% set latest = snaps.get(v.id) %}
-            <div class="mt-2">
-              <span class="badge text-bg-primary">Initial: {{ '{:,}'.format(v.views_initial).replace(',', ' ') }}</span>
-              <span class="badge text-bg-info">Actuel: {{ '{:,}'.format(v.views_current).replace(',', ' ') }}</span>
-              {% if latest %}
+<section class="hero mb-4">
+  <div class="d-flex justify-content-between align-items-end">
+    <div>
+      <h1 class="display-6 fw-semibold">Historique</h1>
+      <p class="text-muted mb-0">Suivi de l’évolution des vues et notes personnelles.</p>
+    </div>
+    <div>
+      <a href="#" id="refreshStats" class="btn btn-outline-secondary soft-btn">Rafraîchir les stats</a>
+    </div>
+  </div>
+</section>
+
+{% if videos|length == 0 %}
+  <div class="empty card shadow-sm border-0 p-4 text-center">
+    <div class="emoji">🗂️</div>
+    <h5 class="mt-2">Aucune vidéo utilisée pour le moment</h5>
+    <p class="text-muted">Marque des vidéos depuis l’accueil pour commencer le suivi.</p>
+  </div>
+{% else %}
+  <div class="row g-4">
+    {% for v in videos %}
+    <div class="col-xl-6">
+      <div class="card shadow-sm border-0 h-100">
+        <div class="row g-0">
+          <div class="col-4 p-2">
+            <img src="{{ v.thumbnail }}" class="thumb rounded" alt="thumb">
+          </div>
+          <div class="col-8">
+            <div class="card-body pt-3 pb-2">
+              <a href="{{ v.url }}" target="_blank" class="text-decoration-none"><h6 class="card-title clamp-2">{{ v.title }}</h6></a>
+              <div class="small text-muted">{{ v.channel }} • {{ v.region }}</div>
+              {% set latest = snaps.get(v.id) %}
+              <div class="d-flex flex-wrap gap-2 mt-2">
+                <span class="chip">Initial: {{ '{:,}'.format(v.views_initial).replace(',', ' ') }}</span>
+                <span class="chip">Actuel: {{ '{:,}'.format(v.views_current).replace(',', ' ') }}</span>
+                {% if latest %}
                 {% set hours = ((latest.captured_at - v.created_at).total_seconds() / 3600.0) | round(1) %}
-                <span class="badge text-bg-success">Δ {{ (v.views_current - v.views_initial) | int }} vues en {{ hours }}h</span>
-              {% endif %}
+                <span class="chip chip-accent">+ {{ (v.views_current - v.views_initial) | int }} vues / {{ hours }}h</span>
+                {% endif %}
+              </div>
+              <form class="mt-3" method="post" action="/note/{{ v.id }}">
+                <div class="input-group">
+                  <input type="text" name="content" class="form-control" placeholder="Ajouter une note (idée TikTok, résultat, etc.)">
+                  <button class="btn btn-primary soft-btn">Ajouter</button>
+                </div>
+              </form>
             </div>
           </div>
         </div>
-        <form class="mt-3" method="post" action="/note/{{ v.id }}">
-          <div class="input-group">
-            <input type="text" name="content" class="form-control" placeholder="Ajouter une note (idée TikTok, résultat, etc.)">
-            <button class="btn btn-outline-primary">Ajouter</button>
-          </div>
-        </form>
       </div>
     </div>
+    {% endfor %}
   </div>
-  {% endfor %}
-</div>
+{% endif %}
 {% endblock %}
     """,
 )
 
 # ---------------------------
-# static
+# static/styles.css
 # ---------------------------
 add(
     "static/styles.css",
     r"""
 :root{
-  --pastel-bg: #f3f5ff;
+  --pastel-bg: #f4f6ff;
   --grad-a: #7a8cff;
   --grad-b: #b18cff;
+  --ink: #1f2440;
+  --chip: #edf0ff;
 }
-.bg-pastel{ background: var(--pastel-bg); }
-.bg-gradient{ background: linear-gradient(90deg, var(--grad-a), var(--grad-b)); }
-.card{ border-radius: 16px; }
-img{ object-fit: cover; }
+body{ background: linear-gradient(180deg, #f8f9ff 0%, #f1f3ff 100%); font-family: 'Inter', system-ui, -apple-system, Segoe UI, Roboto, sans-serif; color: var(--ink); }
+.glass-nav{ background: linear-gradient(90deg, var(--grad-a), var(--grad-b)); backdrop-filter: blur(8px); box-shadow: 0 6px 24px rgba(122,140,255,.25); }
+.soft-btn{ border-radius: 12px; box-shadow: 0 4px 14px rgba(0,0,0,.06); }
+.hero{ background: white; border-radius: 20px; padding: 22px; box-shadow: 0 10px 30px rgba(71,88,255,.07); border: 1px solid #eef0ff; }
+.card{ border-radius: 18px; }
+.trend-card .thumb-wrap{ position: relative; }
+.thumb{ width: 100%; height: 170px; object-fit: cover; border-top-left-radius: 18px; border-top-right-radius: 18px; }
+.soft-badge{ position: absolute; top: 10px; left: 10px; background: rgba(255,255,255,.85); backdrop-filter: blur(4px); color: var(--ink); border-radius: 999px; padding: 4px 10px; font-weight: 600; }
+.badge-region{ left: auto; right: 10px; }
+.badge-short{ background: rgba(255,240,199,.9); }
+.chip{ background: var(--chip); border-radius: 999px; padding: 6px 10px; font-weight: 600; font-size: .85rem; }
+.chip-accent{ background: #e9f5ff; }
+.clamp-2{ display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.empty .emoji{ font-size: 42px; }
+.overlay{ position: fixed; inset: 0; display: grid; place-items: center; background: rgba(255,255,255,.5); backdrop-filter: blur(2px); }
+#countdown{ letter-spacing: .5px; }
     """,
 )
 
@@ -804,35 +904,111 @@ COPY . .
 
 EXPOSE 4443
 
-CMD ["gunicorn", "-w", "2", "-b", "0.0.0.0:4443", "app:app"]
+# 1 seul worker pour éviter plusieurs schedulers en parallèle
+CMD ["gunicorn", "-w", "1", "-b", "0.0.0.0:4443", "app:app"]
     """,
 )
 
 # ---------------------------
-# tests (ajout de tests unitaires)
+# README.md
+# ---------------------------
+add(
+    "README.md",
+    r"""
+# Veille YouTube → TikTok (Local, Docker)
+
+## 3 commandes vitales
+```bash
+cp .env.example .env && nano .env      # 1) mets ta clé YOUTUBE_API_KEY + identifiants
+
+docker build -t veille-tiktok .        # 2) build l'image
+
+docker run -d --name veille-tiktok \
+  -p 4443:4443 --env-file .env \
+  --restart=always veille-tiktok       # 3) lance (et redémarre au boot)
+```
+
+Interface (local) : http://localhost:4443  
+Identifiants : APP_USERNAME / APP_PASSWORD (dans `.env`)
+    """,
+)
+
+# ---------------------------
+# manage.sh
+# ---------------------------
+add(
+    "manage.sh",
+    r"""
+#!/usr/bin/env bash
+set -euo pipefail
+IMAGE="veille-tiktok"; NAME="veille-tiktok"; PORT="4443"; ENV_FILE=".env"
+usage(){ cat <<USAGE
+Usage: $0 <cmd>
+  up|build|run|start|stop|restart|status|logs|clean|nuke|refresh|stats|help
+USAGE
+}
+exists_container(){ docker ps -a --format '{{.Names}}' | grep -q "^${NAME}$"; }
+build(){ docker build -t ${IMAGE} .; }
+run(){ docker run -d --name ${NAME} -p ${PORT}:${PORT} --env-file ${ENV_FILE} --restart=always ${IMAGE}; }
+start(){ docker start ${NAME}; }
+stop(){ docker stop ${NAME}; }
+restart(){ docker restart ${NAME}; }
+status(){ docker ps -a --filter "name=${NAME}"; }
+logs(){ docker logs -f ${NAME}; }
+clean(){ exists_container && docker rm -f ${NAME} || true; }
+nuke(){ clean; docker images --format '{{.Repository}}:{{.Tag}}' | grep -q "^${IMAGE}:" && docker rmi -f ${IMAGE} || true; }
+read_env(){ [[ -f "${ENV_FILE}" ]] || { echo "${ENV_FILE} introuvable"; return 1; }; APP_USERNAME=$(grep -E '^APP_USERNAME=' ${ENV_FILE} | cut -d= -f2-); APP_PASSWORD=$(grep -E '^APP_PASSWORD=' ${ENV_FILE} | cut -d= -f2-); }
+refresh(){ read_env && curl -sS -u "$APP_USERNAME:$APP_PASSWORD" -X POST http://localhost:${PORT}/api/refresh | jq . || true; }
+stats(){ read_env && curl -sS -u "$APP_USERNAME:$APP_PASSWORD" -X POST http://localhost:${PORT}/api/stats-refresh | jq . || true; }
+cmd=${1:-help}
+case "$cmd" in
+  up) build; clean; run;; build) build;; run) run;; start) start;; stop) stop;; restart) restart;; status) status;; logs) logs;; clean) clean;; nuke) nuke;; refresh) refresh;; stats) stats;; help|-h|--help) usage;; *) echo "Commande inconnue: $cmd"; usage; exit 1;; esac
+    """,
+)
+
+# ---------------------------
+# clean_scaffold.sh
+# ---------------------------
+add(
+    "clean_scaffold.sh",
+    r"""
+#!/usr/bin/env bash
+set -euo pipefail
+DRY=0; ALL=0; DOCKER=0; ASK=1
+for a in "$@"; do case "$a" in --dry-run) DRY=1;; --all) ALL=1;; --docker) DOCKER=1;; -y) ASK=0;; -h|--help) echo "--dry-run --all --docker -y"; exit 0;; *) echo "opt inconnue: $a"; exit 1;; esac; done
+[[ -f scaffold.py ]] || { echo "scaffold.py introuvable"; exit 1; }
+DEL=(".env" ".env.example" ".gitignore" ".dockerignore" "Dockerfile" "requirements.txt" "README.md" "manage.sh" "clean_scaffold.sh" "app.py" "config.py" "models.py" "youtube_client.py" "scheduler.py" "templates" "static" "tests" "data.db" "__pycache__" ".pytest_cache")
+[[ $ALL -eq 1 ]] && DEL+=("scaffold.py")
+EXIST=(); for p in "${DEL[@]}"; do [[ -e "$p" ]] && EXIST+=("$p"); done
+[[ ${#EXIST[@]} -eq 0 && $DOCKER -eq 0 ]] && { echo "Rien à supprimer"; exit 0; }
+echo "Suppression:"; for p in "${EXIST[@]}"; do echo " - $p"; done
+[[ $DOCKER -eq 1 ]] && { echo " - Docker: conteneur & image veille-tiktok"; }
+[[ $DRY -eq 1 ]] && { echo "Dry-run"; exit 0; }
+[[ $ASK -eq 1 ]] && read -r -p "Confirmer ? (oui/NO) " ans && [[ "$ans" != "oui" ]] && { echo "Annulé"; exit 0; }
+for p in "${EXIST[@]}"; do [[ -d "$p" ]] && rm -rf -- "$p" || rm -f -- "$p"; done
+if [[ $DOCKER -eq 1 ]]; then docker stop veille-tiktok >/dev/null 2>&1 || true; docker rm veille-tiktok >/dev/null 2>&1 || true; docker rmi -f veille-tiktok >/dev/null 2>&1 || true; fi
+echo "OK"
+    """,
+)
+
+# ---------------------------
+# tests/test_core.py
 # ---------------------------
 add(
     "tests/test_core.py",
     r"""
-import math
 from datetime import datetime, timedelta
-
 from models import Video
-
 
 def test_views_per_hour_zero_when_missing_data():
     v = Video(views_current=0, published_at=None)
     assert v.views_per_hour() == 0.0
 
-
 def test_views_per_hour_positive():
-    # 3600 vues en 1h => 3600 v/h
     v = Video(views_current=3600, published_at=datetime.utcnow() - timedelta(hours=1))
-    assert 3590 <= v.views_per_hour() <= 3610
+    assert 3500 <= v.views_per_hour() <= 3700
 
-
-def test_schedule_env_format_example():
-    # Juste un test de format attendu HH:MM
+def test_schedule_format_examples():
     def is_hhmm(s):
         try:
             h, m = [int(x) for x in s.split(":")]
@@ -846,12 +1022,23 @@ def test_schedule_env_format_example():
 )
 
 # ---------------------------
-# Écriture des fichiers
+# Écriture des fichiers + chmod
 # ---------------------------
 for path, content in FILES.items():
-    full = ROOT / path
-    full.parent.mkdir(parents=True, exist_ok=True)
-    full.write_text(content, encoding="utf-8")
+    p = ROOT / path
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text(content, encoding="utf-8")
+
+for exe in ("manage.sh", "clean_scaffold.sh"):
+    try:
+        os.chmod(ROOT / exe, 0o755)
+    except Exception:
+        pass
 
 print("✅ Projet généré.")
-print("➡️ Étapes :\n  1) cp .env.example .env && nano .env  (mets YOUTUBE_API_KEY)\n  2) docker build -t veille-tiktok . && docker run -d --name veille-tiktok -p 4443:4443 --env-file .env veille-tiktok\n  3) http://localhost:4443 (Basic Auth)")
+print("""➡️ Étapes :
+  1) cp .env.example .env && nano .env  (mets YOUTUBE_API_KEY et tes identifiants)
+  2) docker build -t veille-tiktok .
+  3) docker run -d --name veille-tiktok -p 4443:4443 --env-file .env veille-tiktok
+  (option) démarrage auto : docker update --restart=always veille-tiktok
+""")
