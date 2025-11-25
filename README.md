@@ -34,12 +34,18 @@ Avant `docker compose up -d`, vérifiez :
 
 ## 🔑 Configuration
 1. Copier le modèle : `cp .env.example .env`
-2. Définir :
-   - `YOUTUBE_API_KEY`
-   - `APP_USERNAME` / `APP_PASSWORD` (16+ caractères, peut inclure caractères spéciaux/japonais)
-   - `APP_SECRET` (clé JWT)
-   - `FRONTEND_ORIGIN` (ex : http://localhost:5173)
-   - `DATABASE_URL` (par défaut vers le service `db` en Docker)
+2. Définir les variables ci‑dessous (mêmes noms pour Docker et le développement local) :
+
+| Variable | Description | Exemple |
+| --- | --- | --- |
+| `YOUTUBE_API_KEY` | Clé API YouTube v3 | `AIza...` |
+| `APP_USERNAME` | Identifiant de connexion (UTF‑8) | `admin` |
+| `APP_PASSWORD` | Mot de passe 16+ caractères (UTF‑8) | `m0tDeP@55€安全` |
+| `APP_SECRET` | Secret JWT HMAC | `super-long-random-string` |
+| `FRONTEND_ORIGIN` | Origine autorisée pour les cookies/JWT | `http://localhost:5173` |
+| `DATABASE_URL` | Chaîne Postgres | `postgres://postgres:postgres@db:5432/viral_radar` |
+
+💡 Si vous développez hors Docker, gardez les mêmes variables pour éviter les écarts entre environnements.
 
 ## 🚀 Déploiement rapide (Docker)
 ```bash
