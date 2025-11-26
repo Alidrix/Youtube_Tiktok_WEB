@@ -1,10 +1,3 @@
-diff --git a/README.md b/README.md
-index f55e8b7de0ae6eac60e92e1416d7683313088815..95f4c31a94c449eb9327e23651960825b64e2fc4 100644
---- a/README.md
-+++ b/README.md
-@@ -1 +1,103 @@
--# Youtube_Tiktok_WEB
-\ No newline at end of file
 +# 🎥 Viral Radar – YouTube & TikTok (WIP)
 +
 +Un outil auto‑hébergé pour repérer et suivre les vidéos virales YouTube (TikTok à venir) avec stats, historique, filtres thématiques et notifications locales. Conçu pour un usage personnel sur port **4443** avec backend Axum + PostgreSQL et frontend SvelteKit.
