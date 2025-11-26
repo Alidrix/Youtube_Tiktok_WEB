@@ -24,7 +24,6 @@ Docker-compose.yml  → Orchestration backend/frontend/db (port 4443 exposé)
 - Docker & Docker Compose
 - (Optionnel) Rust + Node 20 si vous voulez développer hors conteneur
 
-<<<<<<< codex/generate-personal-video-tracking-project-zqushc
 ## ✅ Checklist « ça démarre du premier coup »
 Avant `docker compose up -d`, vérifiez :
 - `.env` est présent et bien rempli (`APP_USERNAME`, `APP_PASSWORD` ≥ 16 caractères, `APP_SECRET`, `YOUTUBE_API_KEY`, `DATABASE_URL`, `FRONTEND_ORIGIN`).
