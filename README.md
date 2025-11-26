@@ -46,6 +46,7 @@ Avant `docker compose up -d`, vérifiez :
 | `DATABASE_URL` | Chaîne Postgres (par défaut `db` en Docker) | `postgres://postgres:postgres@db:5432/viral` |
 
 💡 Si vous développez hors Docker, gardez les mêmes variables pour éviter les écarts entre environnements.
+🤫 Tous les secrets sont centralisés dans `.env` (une seule édition suffit) : ni le backend ni le frontend ne demandent de re-saisir la clé YouTube ou les mots de passe ailleurs.
 
 ### Création de compte et clés privées
 - **Compte unique** : au premier démarrage, créez l’utilisateur directement depuis la page de login (bloc « Initialisation »). Le mot de passe est haché en base.
