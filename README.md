@@ -1,4 +1,3 @@
-# Youtube_Tiktok_WEB
 # 🎥 Viral Radar – YouTube & TikTok (WIP)
 
 Un outil auto‑hébergé pour repérer et suivre les vidéos virales YouTube (TikTok à venir) avec stats, historique, filtres thématiques et notifications locales. Conçu pour un usage personnel sur port **4443** avec backend Axum + PostgreSQL et frontend SvelteKit.
