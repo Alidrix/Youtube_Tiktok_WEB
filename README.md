@@ -55,7 +55,6 @@ Avant `docker compose up -d`, vérifiez :
    - `AUTH_USERNAME` / `AUTH_PASSWORD` (16+ caractères, peut inclure caractères spéciaux/japonais)
    - `JWT_SECRET`
    - `DATABASE_URL` (par défaut vers le service `db` en Docker)
->>>>>>> main
 
 ## 🚀 Déploiement rapide (Docker)
 ```bash
