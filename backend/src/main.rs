@@ -45,6 +45,15 @@ impl FromRef<AppState> for YoutubeConfig {
 
 #[derive(Clone)]
 struct AuthConfig {
+    jwt_secret: String,
+    seed_user: Option<SeedUser>,
+}
+
+#[derive(Clone)]
+struct SeedUser {
+    username: String,
+    password: String,
+=======
     username: String,
     password_hash: String,
     jwt_secret: String,
@@ -52,6 +61,28 @@ struct AuthConfig {
 
 impl AuthConfig {
     fn from_env() -> Result<Self, AppError> {
+        let jwt_secret = std::env::var("APP_SECRET").unwrap_or_else(|_| "dev-secret-change-me".into());
+        let seed_user = match (
+            std::env::var("APP_USERNAME").ok(),
+            std::env::var("APP_PASSWORD").ok(),
+        ) {
+            (Some(username), Some(password)) => {
+                if password.chars().count() < 16 {
+                    return Err(AppError::Config(
+                        "APP_PASSWORD must be at least 16 characters".into(),
+                    ));
+                }
+                Some(SeedUser { username, password })
+            }
+            _ => None,
+        };
+
+        Ok(Self {
+            jwt_secret,
+            seed_user,
+        })
+    }
+
         let username = std::env::var("APP_USERNAME").map_err(|_| AppError::Config("APP_USERNAME".into()))?;
         let password = std::env::var("APP_PASSWORD").map_err(|_| AppError::Config("APP_PASSWORD".into()))?;
         if password.chars().count() < 16 {
@@ -86,6 +117,7 @@ struct YoutubeConfig {
 
 impl YoutubeConfig {
     fn from_env() -> Result<Self, AppError> {
+        let api_key = std::env::var("YOUTUBE_API_KEY").unwrap_or_default();
         let api_key = std::env::var("YOUTUBE_API_KEY").unwrap_or_else(|_| "demo-key".into());
         Ok(Self { api_key })
     }
@@ -106,6 +138,12 @@ struct Credentials {
 #[derive(Debug, Serialize)]
 struct AuthResponse {
     token: String,
+}
+
+#[derive(Debug, Serialize)]
+struct AuthStatus {
+    needs_setup: bool,
+    has_api_key: bool,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -131,6 +169,12 @@ struct VideoPayload {
     published_at: DateTime<Utc>,
 }
 
+#[derive(Debug, Deserialize)]
+struct RegisterPayload {
+    username: String,
+    password: String,
+}
+
 #[derive(Debug, Serialize)]
 struct ApiVideosResponse {
     videos: Vec<Video>,
@@ -153,6 +197,10 @@ enum AppError {
     Config(String),
     #[error("unauthorized")]
     Unauthorized,
+    #[error("bad request: {0}")]
+    BadRequest(String),
+    #[error("conflict")]
+    Conflict,
     #[error("database error: {0}")]
     Database(#[from] sqlx::Error),
     #[error("internal error")]
@@ -167,6 +215,8 @@ impl IntoResponse for AppError {
     fn into_response(self) -> axum::response::Response {
         let status = match self {
             AppError::Unauthorized => StatusCode::UNAUTHORIZED,
+            AppError::BadRequest(_) => StatusCode::BAD_REQUEST,
+            AppError::Conflict => StatusCode::CONFLICT,
             AppError::Config(_) => StatusCode::INTERNAL_SERVER_ERROR,
             AppError::Database(_) => StatusCode::INTERNAL_SERVER_ERROR,
             AppError::Internal => StatusCode::INTERNAL_SERVER_ERROR,
@@ -192,6 +242,7 @@ async fn main() -> Result<(), AppError> {
         .await?;
 
     let auth = AuthConfig::from_env()?;
+    ensure_seed_user(&pool, &auth).await?;
     let youtube = YoutubeConfig::from_env()?;
     let state = AppState {
         pool,
@@ -203,6 +254,8 @@ async fn main() -> Result<(), AppError> {
     let app = Router::new()
         .route("/api/v1/health", get(health))
         .route("/api/v1/auth/login", post(login))
+        .route("/api/v1/auth/status", get(auth_status))
+        .route("/api/v1/auth/register", post(register))
         .route("/api/v1/videos", get(list_videos).post(refresh_videos))
         .route("/api/v1/notes", post(update_note))
         .layer(
@@ -223,12 +276,91 @@ async fn main() -> Result<(), AppError> {
         .map_err(|_| AppError::Internal)
 }
 
+async fn ensure_seed_user(pool: &PgPool, config: &AuthConfig) -> Result<(), AppError> {
+    let Some(seed) = &config.seed_user else {
+        return Ok(());
+    };
+
+    let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM users")
+        .fetch_one(pool)
+        .await?;
+
+    if count == 0 {
+        let password_hash = bcrypt::hash(&seed.password, bcrypt::DEFAULT_COST)?;
+        sqlx::query("INSERT INTO users (id, username, password_hash) VALUES ($1, $2, $3)")
+            .bind(uuid::Uuid::new_v4())
+            .bind(&seed.username)
+            .bind(password_hash)
+            .execute(pool)
+            .await?;
+        info!("seed user {} created", seed.username);
+    }
+
+    Ok(())
+}
+
 async fn health() -> Json<ApiMessage> {
     Json(ApiMessage {
         message: "ok".into(),
     })
 }
 
+async fn auth_status(
+    State(pool): State<PgPool>,
+    State(youtube): State<YoutubeConfig>,
+) -> Result<Json<AuthStatus>, AppError> {
+    let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM users")
+        .fetch_one(&pool)
+        .await?;
+
+    Ok(Json(AuthStatus {
+        needs_setup: count == 0,
+        has_api_key: !youtube.api_key.is_empty(),
+    }))
+}
+
+async fn register(
+    State(pool): State<PgPool>,
+    Json(payload): Json<RegisterPayload>,
+) -> Result<Json<ApiMessage>, AppError> {
+    if payload.password.chars().count() < 16 {
+        return Err(AppError::BadRequest(
+            "Le mot de passe doit contenir au moins 16 caractères".into(),
+        ));
+    }
+
+    let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM users")
+        .fetch_one(&pool)
+        .await?;
+    if count > 0 {
+        return Err(AppError::Conflict);
+    }
+
+    let password_hash = bcrypt::hash(&payload.password, bcrypt::DEFAULT_COST)?;
+    sqlx::query("INSERT INTO users (id, username, password_hash) VALUES ($1, $2, $3)")
+        .bind(uuid::Uuid::new_v4())
+        .bind(&payload.username)
+        .bind(password_hash)
+        .execute(&pool)
+        .await?;
+
+    Ok(Json(ApiMessage {
+        message: "Compte créé, vous pouvez vous connecter".into(),
+    }))
+}
+
+async fn login(State(state): State<AppState>, Json(payload): Json<Credentials>) -> Result<Json<AuthResponse>, AppError> {
+    let Some(password_hash) = sqlx::query_scalar::<_, String>(
+        "SELECT password_hash FROM users WHERE username = $1",
+    )
+    .bind(&payload.username)
+    .fetch_optional(&state.pool)
+    .await?
+    else {
+        return Err(AppError::Unauthorized);
+    };
+
+    if !bcrypt::verify(&payload.password, &password_hash).unwrap_or(false) {
 async fn login(State(state): State<AppState>, Json(payload): Json<Credentials>) -> Result<Json<AuthResponse>, AppError> {
     if !state.auth.verify(&payload.username, &payload.password) {
         return Err(AppError::Unauthorized);
@@ -390,11 +522,22 @@ mod tests {
     use super::*;
 
     #[test]
+    #[serial_test::serial]
     fn auth_rejects_short_password() {
         std::env::set_var("APP_USERNAME", "demo");
         std::env::set_var("APP_PASSWORD", "short");
         let result = AuthConfig::from_env();
         assert!(result.is_err());
+    }
+
+    #[test]
+    #[serial_test::serial]
+    fn seed_user_configured_when_env_present() {
+        std::env::set_var("APP_USERNAME", "demo");
+        std::env::set_var("APP_PASSWORD", "averylongpassword!!");
+        std::env::set_var("APP_SECRET", "secret");
+        let auth = AuthConfig::from_env().unwrap();
+        assert!(auth.seed_user.is_some());
     }
 
     #[test]

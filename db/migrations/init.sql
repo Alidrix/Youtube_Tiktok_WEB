@@ -20,3 +20,10 @@ CREATE TABLE IF NOT EXISTS video_stats (
 );
 
 CREATE INDEX IF NOT EXISTS idx_video_stats_video ON video_stats(video_id);
+
+CREATE TABLE IF NOT EXISTS users (
+    id UUID PRIMARY KEY,
+    username TEXT UNIQUE NOT NULL,
+    password_hash TEXT NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);

@@ -30,6 +30,17 @@ export function login(username: string, password: string) {
   });
 }
 
+export function authStatus() {
+  return request('/auth/status', { method: 'GET' });
+}
+
+export function register(username: string, password: string) {
+  return request('/auth/register', {
+    method: 'POST',
+    body: JSON.stringify({ username, password })
+  });
+}
+
 export function fetchVideos() {
   return request('/videos');
 }
