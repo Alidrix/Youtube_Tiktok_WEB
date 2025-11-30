@@ -23,6 +23,14 @@
       console.error(err);
     }
   });
+  import { login } from '$lib/api';
+  import { token } from '$lib/stores/auth';
+  import { pushNotification } from '$lib/stores/notifications';
+
+  let username = '';
+  let password = '';
+  let error: string | null = null;
+  let loading = false;
 
   async function handleLogin(event: Event) {
     event.preventDefault();
@@ -113,6 +121,23 @@
         {/if}
       </p>
     </div>
+</script>
+
+<section class="login">
+  <div class="card">
+    <p class="badge">Sécurité</p>
+    <h1>Connexion</h1>
+    <p class="lede">Authentification unique, mot de passe robuste (16+ caractères).</p>
+    <form on:submit|preventDefault={handleLogin}>
+      <label>Identifiant</label>
+      <input required bind:value={username} placeholder="admin" />
+      <label>Mot de passe</label>
+      <input required type="password" bind:value={password} placeholder="••••••••" minlength="16" />
+      {#if error}
+        <p class="error">{error}</p>
+      {/if}
+      <button class:loading={loading} disabled={loading} type="submit">{loading ? 'Connexion...' : 'Entrer'}</button>
+    </form>
   </div>
 </section>
 
@@ -147,6 +172,13 @@
   }
   h2 {
     margin: 0.5rem 0 0.25rem;
+  }
+    max-width: 420px;
+    width: 100%;
+    border: 1px solid rgba(95, 107, 255, 0.08);
+  }
+  h1 {
+    margin: 0.5rem 0;
   }
   .badge {
     padding: 0.35rem 0.75rem;

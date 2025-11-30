@@ -24,7 +24,9 @@ Docker-compose.yml  → Orchestration backend/frontend/db (port 4443 exposé)
 - Docker & Docker Compose
 - (Optionnel) Rust + Node 20 si vous voulez développer hors conteneur
 
+
 ## ✅ Checklist « ça démarre du premier coup »
+
 Avant `docker compose up -d`, vérifiez :
 - `.env` est présent et bien rempli (`APP_USERNAME`, `APP_PASSWORD` ≥ 16 caractères, `APP_SECRET`, `YOUTUBE_API_KEY`, `DATABASE_URL`, `FRONTEND_ORIGIN`).
 - Le port `4443` n’est pas occupé (backend) et `5173` libre (frontend exposé).
@@ -46,10 +48,16 @@ Avant `docker compose up -d`, vérifiez :
 | `DATABASE_URL` | Chaîne Postgres (par défaut `db` en Docker) | `postgres://postgres:postgres@db:5432/viral` |
 
 💡 Si vous développez hors Docker, gardez les mêmes variables pour éviter les écarts entre environnements.
+
 🤫 Tous les secrets sont centralisés dans `.env` (une seule édition suffit) : ni le backend ni le frontend ne demandent de re-saisir la clé YouTube ou les mots de passe ailleurs.
 
 ### Création de compte et clés privées
 - **Compte unique** : au premier démarrage, créez l’utilisateur directement depuis la page de login (bloc « Initialisation »). Le mot de passe est haché en base.
+=======
+🤫 Tous les secrets sont centralisés dans `.env` (une seule édition suffit) : ni le backend ni le frontend ne demandent de re-saisir la clé YouTube ou les mots de passe ailleurs.
+
+### Création de compte et clés privées
+- **Compte unique** : au premier démarrage, créez l’utilisateur directement depuis la page de login (bloc « Initialisation »). Le mot de passe est haché en base.
 - **Seed optionnel** : si `APP_USERNAME` et `APP_PASSWORD` sont définis dans `.env`, le compte est créé automatiquement lors du boot si aucun utilisateur n’existe.
 - **API YouTube** : définissez `YOUTUBE_API_KEY` une seule fois dans `.env` pour l’API backend ; le frontend détecte sa présence et l’indique sur l’écran d’authentification.
 

@@ -53,6 +53,10 @@ struct AuthConfig {
 struct SeedUser {
     username: String,
     password: String,
+=======
+    username: String,
+    password_hash: String,
+    jwt_secret: String,
 }
 
 impl AuthConfig {
@@ -79,6 +83,24 @@ impl AuthConfig {
         })
     }
 
+        let username = std::env::var("APP_USERNAME").map_err(|_| AppError::Config("APP_USERNAME".into()))?;
+        let password = std::env::var("APP_PASSWORD").map_err(|_| AppError::Config("APP_PASSWORD".into()))?;
+        if password.chars().count() < 16 {
+            return Err(AppError::Config("APP_PASSWORD must be at least 16 characters".into()));
+        }
+        let password_hash = bcrypt::hash(password, bcrypt::DEFAULT_COST)?;
+        let jwt_secret = std::env::var("APP_SECRET").unwrap_or_else(|_| "dev-secret-change-me".into());
+        Ok(Self {
+            username,
+            password_hash,
+            jwt_secret,
+        })
+    }
+
+    fn verify(&self, username: &str, password: &str) -> bool {
+        username == self.username && bcrypt::verify(password, &self.password_hash).unwrap_or(false)
+    }
+
     fn encoding_key(&self) -> EncodingKey {
         EncodingKey::from_secret(self.jwt_secret.as_bytes())
     }
@@ -96,6 +118,7 @@ struct YoutubeConfig {
 impl YoutubeConfig {
     fn from_env() -> Result<Self, AppError> {
         let api_key = std::env::var("YOUTUBE_API_KEY").unwrap_or_default();
+        let api_key = std::env::var("YOUTUBE_API_KEY").unwrap_or_else(|_| "demo-key".into());
         Ok(Self { api_key })
     }
 }
@@ -338,6 +361,8 @@ async fn login(State(state): State<AppState>, Json(payload): Json<Credentials>) 
     };
 
     if !bcrypt::verify(&payload.password, &password_hash).unwrap_or(false) {
+async fn login(State(state): State<AppState>, Json(payload): Json<Credentials>) -> Result<Json<AuthResponse>, AppError> {
+    if !state.auth.verify(&payload.username, &payload.password) {
         return Err(AppError::Unauthorized);
     }
 
@@ -529,5 +554,29 @@ mod tests {
             notes: None,
         };
         assert!(video.is_short);
+    }
+
+    #[tokio::test]
+    async fn login_succeeds_for_valid_credentials() {
+        std::env::set_var("APP_USERNAME", "demo");
+        std::env::set_var("APP_PASSWORD", "averylongpassword!!");
+        std::env::set_var("APP_SECRET", "secret");
+        let auth = AuthConfig::from_env().unwrap();
+        let state = AppState {
+            pool: PgPoolOptions::new()
+                .max_connections(1)
+                .connect_lazy("postgres://postgres:postgres@localhost:5432/postgres")
+                .expect("lazy pool"),
+            auth: auth.clone(),
+            youtube: YoutubeConfig { api_key: "demo".into() },
+            http: Client::new(),
+        };
+
+        let creds = Credentials {
+            username: "demo".into(),
+            password: "averylongpassword!!".into(),
+        };
+        let response = login(State(state), Json(creds)).await.unwrap();
+        assert!(!response.token.is_empty());
     }
 }
