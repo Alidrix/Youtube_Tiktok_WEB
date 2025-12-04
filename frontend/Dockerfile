@@ -1,9 +1,9 @@
 FROM node:20-alpine
 WORKDIR /app
 COPY package.json package-lock.json* ./
-RUN npm install --silent || true
+RUN npm ci --omit=dev=false
 COPY . .
-ENV PORT=4443
+ENV PORT=5173
 RUN npm run build
-EXPOSE 4443
-CMD ["npm", "run", "preview", "--", "--host", "0.0.0.0", "--port", "4443"]
+EXPOSE 5173
+CMD ["npm", "run", "preview", "--", "--host", "0.0.0.0", "--port", "5173"]
