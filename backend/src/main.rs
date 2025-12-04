@@ -215,6 +215,7 @@ async fn main() -> Result<(), AppError> {
         .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
         .init();
 
+    let database_url = normalize_database_url()?;
     let database_url = std::env::var("DATABASE_URL")
         .map_err(|_| AppError::Config("DATABASE_URL is required".into()))?;
 
@@ -222,6 +223,8 @@ async fn main() -> Result<(), AppError> {
         .max_connections(5)
         .connect(&database_url)
         .await?;
+
+    apply_bootstrap_migration(&pool).await?;
 
     let auth = AuthConfig::from_env()?;
     ensure_seed_user(&pool, &auth).await?;
@@ -255,6 +258,33 @@ async fn main() -> Result<(), AppError> {
     axum::serve(listener, app)
         .await
         .map_err(|_| AppError::Internal)
+}
+
+fn normalize_database_url() -> Result<String, AppError> {
+    let mut url = std::env::var("DATABASE_URL")
+        .map_err(|_| AppError::Config("DATABASE_URL is required".into()))?;
+
+    if !url.contains("sslmode=") {
+        let separator = if url.contains('?') { '&' } else { '?' };
+        url.push(separator);
+        url.push_str("sslmode=require");
+    }
+
+    Ok(url)
+}
+
+async fn apply_bootstrap_migration(pool: &PgPool) -> Result<(), AppError> {
+    const INIT_SQL: &str = include_str!("../../db/migrations/init.sql");
+
+    for statement in INIT_SQL
+        .split(';')
+        .map(str::trim)
+        .filter(|sql| !sql.is_empty())
+    {
+        sqlx::query(statement).execute(pool).await?;
+    }
+
+    Ok(())
 }
 
 async fn ensure_seed_user(pool: &PgPool, config: &AuthConfig) -> Result<(), AppError> {
