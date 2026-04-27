@@ -1,62 +1,301 @@
 # Viral Radar
 
-Viral Radar est une plateforme de veille virale destinée à détecter les tendances émergentes sur YouTube, puis à terme sur TikTok et Instagram.
+Viral Radar est une plateforme SaaS de veille virale destinée à détecter les tendances émergentes sur YouTube, puis à terme sur TikTok et Instagram.
 
-L'objectif produit est de rendre accessible, via une interface centralisée et un abonnement payant, les contenus qui performent le mieux dans le monde : vidéos en forte croissance, vues par heure, catégories en vogue, signaux faibles et opportunités de visibilité pour créateurs, influenceurs, agences et marques.
+L'objectif produit est simple : permettre aux créateurs, influenceurs, agences et marques d'identifier les contenus qui commencent à exploser avant qu'ils soient saturés.
+
+La plateforme doit rester claire, accessible et orientée action : l'utilisateur se connecte, arrive sur son radar du jour, voit immédiatement les tendances utiles, puis peut passer à une offre payante pour débloquer l'accès complet.
 
 ## Stack
-- Backend: Rust, Axum, SQLx, PostgreSQL
-- Frontend: SvelteKit, TypeScript, Vite
-- Infra: Docker Compose
-- Base: PostgreSQL / Supabase
-- Source actuelle: YouTube Data API v3
+
+- Backend : Rust, Axum, SQLx, PostgreSQL
+- Frontend : SvelteKit, TypeScript, Vite
+- Infra : Docker Compose
+- Base : PostgreSQL / Supabase
+- Source actuelle : YouTube Data API v3
+- Sources cibles : YouTube, TikTok, Instagram
 
 ## Vision produit
 
-Viral Radar doit évoluer vers une plateforme SaaS publique permettant aux utilisateurs abonnés d'accéder rapidement aux tendances vidéo les plus prometteuses.
+Viral Radar doit évoluer vers une plateforme publique à abonnement permettant d'accéder à :
 
-Objectifs métier :
+- des vidéos en forte croissance ;
+- des classements par plateforme ;
+- des tendances par pays, catégorie et niche ;
+- des métriques simples comme les vues par heure ;
+- des scores de potentiel viral ;
+- des signaux faibles avant saturation ;
+- des recommandations exploitables pour créer du contenu.
 
-- détecter les vidéos YouTube qui progressent le plus vite ;
-- calculer des métriques fortes comme les vues par heure, la vélocité et le potentiel viral ;
-- identifier les catégories et domaines en vogue ;
-- aider les influenceurs, créateurs de contenu, agences social media et marques à s'inspirer des tendances émergentes ;
-- centraliser à terme YouTube, TikTok et Instagram dans un seul radar de tendances ;
-- monétiser l'accès à la donnée via un système d'abonnement.
+Le produit ne doit pas seulement afficher les contenus déjà populaires. Il doit surtout faire remonter les contenus en accélération.
 
-Le produit ne doit pas seulement afficher les vidéos populaires déjà connues. Il doit surtout faire remonter les contenus en accélération, c'est-à-dire les tendances qui commencent à émerger avant qu'elles soient saturées.
+Phrase produit cible :
 
-## Modèle SaaS cible
+> Repère les tendances avant les autres et crée du contenu au bon moment.
 
-Architecture cible recommandée pour une exposition publique :
+## Positionnement SaaS
+
+Architecture cible pour une exposition publique :
 
 | Bloc | Rôle |
 | --- | --- |
-| Frontend public | Landing page, présentation de l'offre, inscription, login |
-| Dashboard abonné | Accès aux tendances, filtres, statistiques et exports |
+| Frontend public | Landing page, tarifs, inscription, connexion |
+| Dashboard abonné | Radar, tendances, filtres, statistiques, favoris |
 | Backend API privé | Agrégation, scoring, authentification, quotas utilisateur |
-| Worker de scan | Collecte planifiée des données YouTube/TikTok/Instagram |
-| Base de données | Stockage vidéos, stats, catégories, signaux et utilisateurs |
-| Paiement | Abonnements mensuels/annuels, gestion des accès |
-| Admin | Supervision quotas API, utilisateurs, plans et logs |
+| Worker de scan | Collecte planifiée YouTube, TikTok, Instagram |
+| Base de données | Vidéos, statistiques, utilisateurs, plans, limites |
+| Paiement | Abonnements mensuels, contrôle des accès |
+| Admin | Supervision utilisateurs, quotas API, workers et logs |
 
-Le frontend public pourra être exposé à tous, mais les données avancées doivent rester derrière authentification et abonnement.
+Le frontend public peut être visible par tous. Les données avancées restent derrière authentification et abonnement.
+
+## Offres commerciales retenues
+
+La gamme retenue repose sur 3 offres simples : Free, Pro et Studio.
+
+| Plan | Prix | Cible | Accès |
+| --- | ---: | --- | --- |
+| Free | 0 € | Découverte | 3 tendances visibles par jour |
+| Pro | 10 €/mois | Créateurs et influenceurs | Tendances illimitées + filtres + favoris + statistiques standards |
+| Studio | 18 €/mois | Créateurs avancés, agences, marques | Statistiques avancées + alertes + rapports + historique étendu |
+
+### Plan Free
+
+Objectif : permettre à l'utilisateur de tester rapidement la valeur du produit.
+
+Limite recommandée :
+
+- 3 tendances visibles par jour ;
+- idéalement 1 YouTube + 1 TikTok + 1 Instagram lorsque les 3 plateformes seront disponibles ;
+- données basiques uniquement ;
+- pas d'historique long ;
+- pas d'export ;
+- pas d'alertes ;
+- upgrade visible vers le plan Pro.
+
+Données affichées en Free :
+
+- plateforme ;
+- thumbnail ;
+- titre ;
+- catégorie ;
+- score tendance simplifié ;
+- vues par heure simplifiées.
+
+Message de limite :
+
+```txt
+Tu as consulté tes 3 tendances gratuites du jour.
+Passe en Pro pour débloquer toutes les tendances.
+```
+
+### Plan Pro — 10 €/mois
+
+Objectif : offre principale du produit.
+
+Fonctionnalités :
+
+- tendances illimitées ;
+- accès YouTube, TikTok et Instagram à terme ;
+- filtres par plateforme ;
+- filtres par pays ;
+- filtres par catégorie ;
+- filtres par format ;
+- score tendance ;
+- vues par heure ;
+- favoris ;
+- notes privées ;
+- historique court, par exemple 7 jours ;
+- dashboard complet.
+
+Le plan Pro doit être l'offre mise en avant.
+
+### Plan Studio — 18 €/mois
+
+Objectif : apporter de la décision et de l'analyse avancée, pas seulement plus de données.
+
+Fonctionnalités recommandées :
+
+- historique étendu 30 à 90 jours ;
+- courbes d'évolution ;
+- alertes personnalisées ;
+- rapports hebdomadaires ;
+- exports CSV/PDF ;
+- tendances cross-platform ;
+- comparaison YouTube / TikTok / Instagram ;
+- score d'opportunité ;
+- score de saturation ;
+- détection des signaux faibles ;
+- top créateurs ou chaînes en accélération ;
+- watchlist de niches ;
+- recommandations d'angles de contenu ;
+- analyse des catégories montantes.
+
+Promesse Studio :
+
+> Ne regarde pas seulement ce qui buzz. Comprends pourquoi ça buzz et quoi publier ensuite.
+
+## Règles d'accès produit
+
+Le backend doit gérer les droits selon le plan utilisateur.
+
+Modèle fonctionnel cible :
+
+```txt
+user_plan = free | pro | studio
+daily_trend_limit = 3 | unlimited | unlimited
+platform_access = limited | all | all
+stats_access_level = basic | standard | advanced
+history_days = 0 | 7 | 90
+exports_enabled = false | false | true
+alerts_enabled = false | false | true
+reports_enabled = false | false | true
+```
+
+Les limitations doivent être appliquées côté backend. Le frontend peut masquer ou flouter certains éléments, mais ne doit pas être le seul mécanisme de contrôle.
+
+## Expérience utilisateur cible
+
+Parcours idéal :
+
+1. l'utilisateur arrive sur la landing page ;
+2. il crée un compte ou se connecte ;
+3. il arrive directement sur le Radar du jour ;
+4. il voit ses 3 tendances gratuites ;
+5. il peut filtrer simplement par plateforme ;
+6. lorsqu'il atteint la limite, un écran d'upgrade lui propose le plan Pro ;
+7. après paiement, il débloque les tendances illimitées.
+
+La page principale après connexion doit être le Radar, pas une page technique.
+
+Navigation cible :
+
+```txt
+Radar
+Plateformes
+Favoris
+Alertes
+Rapports
+Abonnement
+Paramètres
+```
+
+Pour le MVP, garder une navigation plus courte :
+
+```txt
+Radar
+Favoris
+Abonnement
+Paramètres
+```
+
+## Dashboard cible
+
+La page principale doit répondre à une question :
+
+> Qu'est-ce qui est en train d'exploser aujourd'hui ?
+
+Structure recommandée :
+
+```txt
+Bonjour 👋
+Voici les tendances qui accélèrent aujourd'hui.
+
+[ YouTube ] [ TikTok ] [ Instagram ] [ Toutes ]
+
+KPI :
+- tendances détectées
+- niches en hausse
+- tendances cross-platform
+- opportunités fortes
+
+Liste des tendances :
+- thumbnail
+- titre
+- plateforme
+- score tendance
+- vues par heure
+- catégorie
+- pays
+- bouton favoris
+- bouton détails
+```
+
+Pour le plan Free, afficher 3 cartes visibles puis verrouiller ou flouter le reste.
+
+## Scores métier à prévoir
+
+Les scores doivent simplifier la lecture des données.
+
+| Score | Utilité |
+| --- | --- |
+| Trend Score | Potentiel viral global |
+| Velocity Score | Vitesse de progression |
+| Freshness Score | Opportunité encore récente |
+| Saturation Score | Niveau de saturation de la tendance |
+| Opportunity Score | Intérêt à créer du contenu maintenant |
+| Category Rank | Position dans une catégorie donnée |
+| Region Rank | Position dans un pays ou une zone |
+| Channel Momentum | Progression d'une chaîne ou d'un créateur |
+
+Exemple d'affichage :
+
+```txt
+Trend Score : 92/100
+Opportunité : Très forte
+Saturation : Faible
+```
+
+## Direction artistique
+
+Le produit ne doit pas donner une impression d'outil IA générique.
+
+À éviter :
+
+- robots ;
+- wording trop IA ;
+- effets néon excessifs ;
+- fond violet/bleu trop générique ;
+- particules futuristes ;
+- dashboard trop chargé ;
+- jargon technique visible par l'utilisateur final.
+
+À privilégier :
+
+- interface claire et premium ;
+- style social analytics ;
+- thumbnails bien visibles ;
+- cartes lisibles ;
+- accents YouTube rouge, TikTok cyan/rose, Instagram gradient léger ;
+- typographie moderne et simple ;
+- beaucoup d'espace ;
+- filtres faciles ;
+- données transformées en décisions.
+
+Références d'esprit :
+
+- YouTube Studio ;
+- Spotify for Artists ;
+- Stripe Dashboard ;
+- Linear ;
+- Notion ;
+- Metricool ;
+- Later ;
+- HypeAuditor.
 
 ## Gestion de la clé API YouTube
 
-Pour un vrai modèle SaaS, le choix recommandé est le suivant :
+Pour un vrai modèle SaaS, la plateforme utilise une ou plusieurs clés YouTube contrôlées par l'éditeur de Viral Radar.
 
-### Option recommandée — Clé API propriétaire côté serveur
-
-La plateforme utilise une ou plusieurs clés YouTube contrôlées par l'éditeur de Viral Radar. Les clients n'ajoutent pas leur propre clé API.
+Les clients ne doivent pas renseigner leur propre clé API dans l'offre standard.
 
 Avantages :
 
 - expérience utilisateur plus simple ;
-- aucun paramétrage technique demandé au client ;
-- meilleure maîtrise de la qualité des données ;
-- possibilité de créer un cache global partagé entre tous les abonnés ;
-- centralisation des quotas, logs et optimisations côté serveur.
+- aucun paramétrage Google Cloud demandé au client ;
+- cache global partagé entre les abonnés ;
+- meilleure maîtrise des quotas ;
+- meilleure qualité de donnée.
 
 Contraintes :
 
@@ -64,28 +303,9 @@ Contraintes :
 - éviter les scans inutiles ;
 - mettre en cache les résultats ;
 - dédupliquer les appels API ;
-- prévoir plusieurs niveaux de fréquence de scan selon l'offre commerciale ;
 - ne jamais exposer la clé au frontend.
 
-### Option alternative — Clé API fournie par le client
-
-Chaque client ajoute sa propre clé YouTube API dans son espace personnel.
-
-Avantages :
-
-- les quotas sont portés par le client ;
-- utile pour des offres entreprise ou self-hosted.
-
-Inconvénients :
-
-- complexifie l'onboarding ;
-- demande des connaissances Google Cloud ;
-- augmente le support client ;
-- moins adapté à une offre SaaS grand public.
-
-### Décision produit recommandée
-
-Pour une plateforme publique à abonnement, utiliser une clé API serveur gérée par Viral Radar. L'option clé client pourra être ajoutée plus tard pour un plan avancé, agence, entreprise ou self-hosted.
+Option future : permettre à un client entreprise ou self-hosted d'ajouter sa propre clé API.
 
 ## Moteur de détection des tendances
 
@@ -152,6 +372,37 @@ Fonctionnalités admin :
 - état des sources YouTube/TikTok/Instagram ;
 - désactivation temporaire d'une source en cas de quota ou incident.
 
+## Priorités MVP commercial
+
+Ordre de développement recommandé :
+
+1. système utilisateur + plan d'abonnement ;
+2. limite Free à 3 tendances par jour ;
+3. page Pricing ;
+4. page Radar du jour ;
+5. cartes tendances propres avec thumbnails ;
+6. score tendance simple ;
+7. filtres plateforme / pays / catégorie ;
+8. favoris ;
+9. page abonnement ;
+10. paiement Stripe ;
+11. watchlist ;
+12. alertes Studio ;
+13. rapports Studio.
+
+MVP vendable :
+
+- landing page ;
+- pricing ;
+- inscription / connexion ;
+- plan gratuit limité ;
+- dashboard Radar ;
+- YouTube fonctionnel ;
+- TikTok et Instagram prévus dans l'UI ;
+- cartes tendances avec score ;
+- favoris ;
+- upgrade Pro.
+
 ## Roadmap produit long terme
 
 ### Phase 1 — Stabilisation YouTube
@@ -205,9 +456,10 @@ Fonctionnalités admin :
 - espace agence ;
 - multi-utilisateurs par organisation ;
 - dashboard marque blanche ;
-- système de recommandations assistées par IA.
+- recommandations d'angles de contenu.
 
 ## Démarrage rapide
+
 ```bash
 cp .env.example .env
 docker compose build --no-cache
@@ -215,14 +467,13 @@ docker compose up -d
 docker compose ps
 ```
 
-Services:
-- Frontend: http://localhost:5173
-- Backend: http://localhost:4443/api/v1
-- Health: http://localhost:4443/api/v1/health
+Services :
+
+- Frontend : http://localhost:5173
+- Backend : http://localhost:4443/api/v1
+- Health : http://localhost:4443/api/v1/health
 
 ## Procédure complète — Démarrer l'infrastructure et accéder à la plateforme
-
-Cette procédure permet de démarrer toute l'infrastructure Docker et d'accéder à l'interface web Viral Radar.
 
 ### 1. Cloner le projet
 
@@ -239,19 +490,12 @@ git checkout codex/fix-docker-backend-build-issues
 
 ### 2. Préparer le fichier d'environnement
 
-Créer le fichier `.env` à partir du modèle :
-
 ```bash
 cp .env.example .env
-```
-
-Éditer ensuite le fichier :
-
-```bash
 nano .env
 ```
 
-Variables minimales à vérifier avant le lancement :
+Variables minimales à vérifier :
 
 | Variable | Rôle | Exemple attendu |
 | --- | --- | --- |
@@ -264,13 +508,13 @@ Variables minimales à vérifier avant le lancement :
 | `THEMES` | Thèmes à surveiller | `business,drole,voiture` |
 | `FRONTEND_ORIGIN` | Origine autorisée du frontend | `http://localhost:5173` |
 
-Générer un secret applicatif si besoin :
+Générer un secret applicatif :
 
 ```bash
 openssl rand -hex 32
 ```
 
-> Ne jamais commiter le fichier `.env`. Il doit rester local à l'environnement de déploiement.
+Ne jamais commiter le fichier `.env`.
 
 ### 3. Construire les images Docker
 
@@ -278,22 +522,10 @@ openssl rand -hex 32
 docker compose build --no-cache
 ```
 
-Cette commande construit :
-
-| Service | Description |
-| --- | --- |
-| `backend` | API Rust/Axum exposée sur le port `4443` |
-| `frontend` | Interface SvelteKit exposée sur le port `5173` |
-
 ### 4. Démarrer l'infrastructure
 
 ```bash
 docker compose up -d
-```
-
-Vérifier l'état des conteneurs :
-
-```bash
 docker compose ps
 ```
 
@@ -308,25 +540,12 @@ frontend   running
 
 ```bash
 curl -i http://localhost:4443/api/v1/health
-```
-
-Réponse attendue :
-
-```json
-{
-  "message": "ok"
-}
-```
-
-Vérifier aussi l'état de l'authentification :
-
-```bash
 curl -i http://localhost:4443/api/v1/auth/status
 ```
 
 ### 6. Accéder à la plateforme
 
-Ouvrir le navigateur sur :
+Ouvrir :
 
 ```txt
 http://localhost:5173
@@ -335,48 +554,27 @@ http://localhost:5173
 Puis :
 
 1. ouvrir la page de connexion ;
-2. se connecter avec les valeurs définies dans `.env` :
-   - identifiant : `APP_USERNAME` ;
-   - mot de passe : `APP_PASSWORD` ;
+2. se connecter avec `APP_USERNAME` et `APP_PASSWORD` ;
 3. accéder au dashboard ;
-4. cliquer sur **Scanner maintenant** pour lancer un scan YouTube ;
-5. vérifier que des vidéos remontent dans le tableau de bord.
+4. cliquer sur **Scanner maintenant** ;
+5. vérifier que les vidéos remontent dans le radar.
 
 ### 7. Consulter les logs
 
-Logs complets :
-
 ```bash
 docker compose logs -f
-```
-
-Logs backend uniquement :
-
-```bash
 docker compose logs -f backend
-```
-
-Logs frontend uniquement :
-
-```bash
 docker compose logs -f frontend
 ```
 
-### 8. Redémarrer ou arrêter l'infrastructure
-
-Redémarrer les services :
+### 8. Redémarrer ou arrêter
 
 ```bash
 docker compose restart
-```
-
-Arrêter les services :
-
-```bash
 docker compose down
 ```
 
-Rebuild complet après modification du code :
+Rebuild complet :
 
 ```bash
 docker compose down
@@ -384,46 +582,28 @@ docker compose build --no-cache
 docker compose up -d
 ```
 
-### 9. Points de contrôle en cas de problème
-
-| Problème | Vérification |
-| --- | --- |
-| Le backend ne démarre pas | vérifier `DATABASE_URL`, `sslmode=require` et les logs backend |
-| Le frontend ne charge pas | vérifier que le port `5173` est disponible |
-| Le dashboard est vide | vérifier `YOUTUBE_API_KEY`, les quotas API et cliquer sur **Scanner maintenant** |
-| Le login échoue | vérifier `APP_USERNAME` et `APP_PASSWORD` dans `.env` |
-| Le frontend ne contacte pas l'API | vérifier `VITE_API_BASE` dans `docker-compose.yml` |
-
-## Variables d'environnement
-Utilisez `.env.example` comme base (aucun secret réel).
-
-Variables clés:
-- `APP_USERNAME`, `APP_PASSWORD`, `SECRET_KEY`
-- `DATABASE_URL` (avec `sslmode=require`)
-- `YOUTUBE_API_KEY`
-- `REGIONS`, `THEMES`
-- `FRONTEND_ORIGIN`
-
 ## Exposition publique et prérequis production
 
-Avant d'exposer la plateforme publiquement, prévoir au minimum :
+Avant exposition publique, prévoir :
 
-- reverse proxy HTTPS devant le frontend et le backend ;
+- reverse proxy HTTPS ;
 - domaine dédié ;
-- cookies sécurisés ou stratégie d'authentification renforcée ;
+- authentification renforcée ;
 - stockage serveur des clés API ;
 - aucun secret dans le navigateur ;
-- rate limiting sur les routes sensibles ;
-- système d'abonnement et contrôle d'accès ;
+- rate limiting ;
+- système d'abonnement ;
+- contrôle d'accès backend ;
 - monitoring des quotas YouTube ;
-- logs applicatifs centralisés ;
+- logs applicatifs ;
 - sauvegardes PostgreSQL ;
-- politique de cache pour réduire les appels API ;
+- politique de cache ;
 - supervision des workers de scan.
 
-La clé YouTube doit rester côté serveur. Elle ne doit jamais être exposée dans le code frontend, les réponses API publiques ou le navigateur.
+La clé YouTube doit rester côté serveur. Elle ne doit jamais être exposée dans le frontend, les réponses API publiques ou le navigateur.
 
 ## API
+
 - `GET /api/v1/health`
 - `GET /api/v1/auth/status`
 - `POST /api/v1/auth/register`
@@ -433,7 +613,8 @@ La clé YouTube doit rester côté serveur. Elle ne doit jamais être exposée d
 - `POST /api/v1/videos/scan` (auth, scan YouTube réel)
 - `POST /api/v1/notes` (auth)
 
-Réponse scan:
+Réponse scan :
+
 ```json
 {
   "message": "scan completed",
@@ -444,6 +625,7 @@ Réponse scan:
 ```
 
 ## Qualité locale
+
 ```bash
 cd backend
 cargo fmt --check
@@ -460,21 +642,32 @@ docker compose build
 ```
 
 ## CI
-Workflow GitHub Actions: `.github/workflows/ci.yml`
-- job backend (fmt, clippy, test)
-- job frontend (npm ci, check, build)
-- job docker (`docker compose build`)
+
+Workflow GitHub Actions : `.github/workflows/ci.yml`
+
+- job backend : fmt, clippy, test ;
+- job frontend : npm ci, check, build ;
+- job docker : docker compose build.
 
 ## Troubleshooting
-- Si backend ne démarre pas: vérifier `DATABASE_URL` et accès réseau Supabase.
-- Si scan vide: vérifier `YOUTUBE_API_KEY`, quotas API, `REGIONS` et `THEMES`.
-- Si frontend ne joint pas l'API: vérifier `VITE_API_BASE` et `docker compose ps`.
+
+| Problème | Vérification |
+| --- | --- |
+| Backend KO | vérifier `DATABASE_URL`, `sslmode=require` et logs backend |
+| Frontend KO | vérifier que le port `5173` est disponible |
+| Dashboard vide | vérifier `YOUTUBE_API_KEY`, quotas API et bouton **Scanner maintenant** |
+| Login KO | vérifier `APP_USERNAME` et `APP_PASSWORD` |
+| API inaccessible | vérifier `VITE_API_BASE` et `docker compose ps` |
 
 ## Roadmap courte
+
 - Stabiliser le score de tendance YouTube
+- Ajouter un système d'abonnement Free / Pro / Studio
+- Ajouter la limite Free à 3 tendances par jour
+- Ajouter une page Pricing
+- Ajouter Stripe
 - Ajouter un worker de scan planifié
-- Ajouter un système d'abonnement
-- Ajouter scan TikTok côté backend
-- Ajouter scan Instagram côté backend
-- Ajouter pagination / tri avancé
-- Alertes automatiques (webhook/email)
+- Ajouter TikTok côté backend
+- Ajouter Instagram côté backend
+- Ajouter les alertes Studio
+- Ajouter les rapports Studio
