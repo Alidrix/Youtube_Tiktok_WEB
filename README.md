@@ -1,4 +1,4 @@
-# 🚀 Viral Radar — SaaS public de veille virale
+# 🚀 The Trend Scope — SaaS public de veille virale
 
 <p align="center">
   <img src="https://img.shields.io/badge/Status-SaaS%20MVP-FF6B00?style=for-the-badge" alt="Status SaaS MVP" />
@@ -13,7 +13,7 @@
 </p>
 
 <p align="center">
-  Viral Radar est une plateforme SaaS simple, premium et monétisable pour aider les créateurs, influenceurs, agences social media et marques à détecter les tendances vidéo émergentes avant saturation.
+  The Trend Scope est une plateforme SaaS simple, premium et monétisable pour aider les créateurs, influenceurs, agences social media et marques à détecter les tendances vidéo émergentes avant saturation.
 </p>
 
 ---
@@ -35,7 +35,7 @@
 
 ## 🎯 Vision produit
 
-> **Viral Radar aide les créateurs, influenceurs et agences à repérer les contenus qui commencent à exploser sur YouTube, TikTok et Instagram, avant qu’ils soient saturés.**
+> **The Trend Scope aide les créateurs, influenceurs et agences à repérer les contenus qui commencent à exploser sur YouTube, TikTok et Instagram, avant qu’ils soient saturés.**
 
 L’objectif est de transformer la donnée brute des plateformes sociales en **opportunités claires et actionnables**.
 
@@ -62,7 +62,7 @@ L’objectif est de transformer la donnée brute des plateformes sociales en **o
 
 ## ✨ Positionnement
 
-Viral Radar doit rester **simple, lisible et orienté créateur**.
+The Trend Scope doit rester **simple, lisible et orienté créateur**.
 
 ### ✅ À privilégier
 
@@ -201,7 +201,7 @@ La clé YouTube est uniquement côté backend :
 | ✅ Clé serveur propriétaire | Recommandé | SaaS public standard |
 | ⚠️ Clé fournie par le client | Option future | Enterprise / self-hosted |
 
-Pour le SaaS public, Viral Radar doit utiliser **une ou plusieurs clés API YouTube côté serveur**, contrôlées par la plateforme.
+Pour le SaaS public, The Trend Scope doit utiliser **une ou plusieurs clés API YouTube côté serveur**, contrôlées par la plateforme.
 
 ---
 
