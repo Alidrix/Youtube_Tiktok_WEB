@@ -1,0 +1,1 @@
+<script lang="ts">import AppShell from '$lib/components/AppShell.svelte';</script><AppShell><h1>Admin · Utilisateurs</h1><p>Liste utilisateurs, email, plan, rôle, date inscription, statut abonnement (à connecter).</p></AppShell>

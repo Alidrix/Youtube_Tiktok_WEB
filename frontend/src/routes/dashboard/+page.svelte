@@ -35,7 +35,7 @@
 
 <div class="shell">
   <aside>
-    <h1>Viral Radar</h1>
+    <h1>The Trend Scope</h1>
     <nav>
       <a href="/radar">Radar</a>
       <a class="active" href="/dashboard">Plateformes</a>

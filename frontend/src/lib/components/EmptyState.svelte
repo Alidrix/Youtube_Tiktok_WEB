@@ -1,6 +1,6 @@
 <script lang="ts">
   export let title = 'Aucune donnée';
-  export let message = 'Lancez un scan pour afficher des vidéos.';
+  export let message = 'Les workers préparent les prochains signaux.';
 </script>
 
 <div class="empty">
@@ -9,7 +9,7 @@
 </div>
 
 <style>
-  .empty { border: 1px dashed #2d3a52; border-radius: var(--radius-card); padding: 2rem; text-align: center; background: #0e1420; }
-  h3 { color: var(--color-text); margin-bottom: 0.5rem; }
-  p { color: var(--color-muted); margin: 0; }
+  .empty { border: 1px dashed var(--border); border-radius: var(--radius-card); padding: 2rem; text-align: center; background: var(--surface); }
+  h3 { color: var(--text); margin-bottom: 0.5rem; }
+  p { color: var(--muted); margin: 0; }
 </style>

@@ -8,7 +8,7 @@
 </script>
 
 <article class="card">
-  <img src={video.thumbnail_url || 'https://placehold.co/640x360/111827/f9fafb?text=Viral+Radar'} alt={video.title} />
+  <img src={video.thumbnail_url || 'https://placehold.co/640x360/111827/f9fafb?text=The+Trend+Scope'} alt={video.title} />
   <div class="body">
     <div class="title-row">
       <h3>{video.title}</h3>

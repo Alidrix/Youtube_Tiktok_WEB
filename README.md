@@ -557,3 +557,48 @@ docker compose down -v
   <img src="https://img.shields.io/badge/Pro-10%E2%82%AC%20%2F%20mois-2563EB?style=for-the-badge" alt="Pro plan" />
   <img src="https://img.shields.io/badge/Studio-18%E2%82%AC%20%2F%20mois-7C3AED?style=for-the-badge" alt="Studio plan" />
 </p>
+
+---
+
+## 🧱 Business pages SaaS (mise à niveau)
+
+Cette base inclut désormais :
+
+- Landing page publique SaaS (The Trend Scope + proposition de valeur).
+- Pricing commercial complet avec fallback local si API indisponible.
+- Subscription opérationnelle (status, checkout, portal, fallback Stripe non configuré).
+- Pages checkout `success` / `cancel`.
+- AppShell connecté (Topbar + Sidebar) pour Radar, Favoris, Watchlist, Alertes, Rapports et Settings.
+- Settings RGPD (`/settings/profile`, `/settings/privacy`, `/settings/data`).
+- Admin panel préparé (`/admin`, `/admin/users`, `/admin/sources`, `/admin/jobs`, `/admin/billing`, `/admin/system`).
+- Routes backend business: favorites et admin.
+
+### Stripe (état)
+
+- Si variables Stripe absentes: `enabled=false` + message `billing is not configured yet`.
+- Si configurées: endpoints checkout/portal renvoient un état prêt (`enabled=true`).
+
+### Commandes de démarrage / tests
+
+```bash
+# Frontend
+cd frontend
+npm ci
+npm run check
+npm run build
+
+# Backend
+cd ../backend
+cargo fmt --check
+cargo clippy -- -D warnings
+cargo test
+
+# Stack complète
+cd ..
+docker compose build
+cp .env.example .env
+docker compose up -d
+curl -fsS http://localhost:4443/api/v1/health
+curl -fsS http://localhost:4443/api/v1/auth/status
+docker compose down -v
+```

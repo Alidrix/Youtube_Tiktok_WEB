@@ -99,9 +99,10 @@ ON trend_views(user_id, trend_id, platform, viewed_date);
 
 CREATE TABLE IF NOT EXISTS favorites (
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    video_id UUID NOT NULL REFERENCES videos(id) ON DELETE CASCADE,
+    platform TEXT NOT NULL,
+    trend_id TEXT NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-    PRIMARY KEY (user_id, video_id)
+    PRIMARY KEY (user_id, platform, trend_id)
 );
 
 CREATE TABLE IF NOT EXISTS watchlists (
@@ -207,3 +208,6 @@ CREATE INDEX IF NOT EXISTS idx_videos_category ON videos(category);
 CREATE INDEX IF NOT EXISTS idx_videos_views_per_hour ON videos(views_per_hour DESC);
 CREATE INDEX IF NOT EXISTS idx_videos_published_at ON videos(published_at DESC);
 CREATE INDEX IF NOT EXISTS idx_trend_views_user_id ON trend_views(user_id);
+
+ALTER TABLE favorites ADD COLUMN IF NOT EXISTS platform TEXT;
+ALTER TABLE favorites ADD COLUMN IF NOT EXISTS trend_id TEXT;

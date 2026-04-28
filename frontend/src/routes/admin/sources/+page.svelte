@@ -1,0 +1,1 @@
+<script lang="ts">import AppShell from '$lib/components/AppShell.svelte';</script><AppShell><h1>Admin · Sources</h1><p>YouTube API, TikTok preview, Instagram preview, quota et dernier scan (à connecter).</p></AppShell>
