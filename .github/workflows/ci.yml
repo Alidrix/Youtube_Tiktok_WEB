@@ -74,7 +74,19 @@ jobs:
         run: curl -fsS http://localhost:4443/api/v1/auth/status
 
       - name: README logo guard
-        run: ! grep -q "trend-scope-logo-light.svg" README.md
+        run: |
+          if grep -q "trend-scope-logo-light.svg" README.md; then
+            echo "README still references the deprecated SVG light logo fallback."
+            exit 1
+          fi
+
+          if grep -q "trend-scope-logo-dark.svg" README.md; then
+            echo "README still references the deprecated SVG dark logo fallback."
+            exit 1
+          fi
+
+          grep -q "frontend/static/brand/trend-scope-logo-light.png" README.md
+          grep -q "frontend/static/brand/trend-scope-logo-dark.png" README.md
 
       - name: Stop stack
         if: always()

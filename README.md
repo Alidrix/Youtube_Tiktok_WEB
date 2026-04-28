@@ -327,7 +327,7 @@ Deux assets de marque sont disponibles :
 | Asset | Usage |
 | --- | --- |
 | `frontend/static/brand/trend-scope-logo-light.png` | Logo pour fond clair. |
-| `frontend/static/brand/trend-scope-logo-dark.svg` | Logo pour fond sombre. |
+| `frontend/static/brand/trend-scope-logo-dark.png` | Logo pour fond sombre. |
 
 ### Mode sombre / clair
 
