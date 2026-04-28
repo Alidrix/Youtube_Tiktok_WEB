@@ -1,0 +1,1 @@
+<script lang="ts">import AppShell from '$lib/components/AppShell.svelte';</script><AppShell><h1>Admin · Système</h1><p>PostgreSQL, PgBouncer, Redis, NATS, ClickHouse, Backend, Worker (à connecter).</p></AppShell>

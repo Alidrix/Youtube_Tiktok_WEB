@@ -1,0 +1,1 @@
+<script lang="ts">import AppShell from '$lib/components/AppShell.svelte';</script><AppShell><h1>Admin · Jobs</h1><p>Jobs NATS, scans planifiés, échecs et dernier traitement worker (à connecter).</p></AppShell>

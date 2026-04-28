@@ -10,9 +10,14 @@ use crate::{
     error::AppError,
     repositories::users::ensure_seed_user,
     routes::{
+        admin::{
+            jobs as admin_jobs, overview as admin_overview, sources as admin_sources,
+            system as admin_system, users as admin_users,
+        },
         auth::{auth_status, login, register},
         billing::{billing_checkout, billing_portal, billing_status, billing_webhook},
         consents::{get_consents, post_consent},
+        favorites::{add_favorite, delete_favorite, list_favorites},
         health::health,
         me::{data_export_request, delete_request, get_me, patch_me, save_preferences},
         notes::update_note,
@@ -79,6 +84,39 @@ pub fn build_router(state: AppState) -> Result<Router, AppError> {
             .route("/api/v1/me/consents", get(get_consents).post(post_consent))
             .route("/api/v1/me/data-export", post(data_export_request))
             .route("/api/v1/me/delete-request", post(delete_request))
+            .route(
+                "/api/v1/favorites",
+                get(|auth: AuthBearer, state| async move { list_favorites(auth, state).await })
+                    .post(|auth: AuthBearer, state, payload| async move {
+                        add_favorite(auth, state, payload).await
+                    }),
+            )
+            .route(
+                "/api/v1/favorites/:platform/:trend_id",
+                axum::routing::delete(|auth: AuthBearer, state, path| async move {
+                    delete_favorite(auth, state, path).await
+                }),
+            )
+            .route(
+                "/api/v1/admin/overview",
+                get(|auth: AuthBearer, state| async move { admin_overview(auth, state).await }),
+            )
+            .route(
+                "/api/v1/admin/users",
+                get(|auth: AuthBearer, state| async move { admin_users(auth, state).await }),
+            )
+            .route(
+                "/api/v1/admin/sources",
+                get(|auth: AuthBearer, state| async move { admin_sources(auth, state).await }),
+            )
+            .route(
+                "/api/v1/admin/jobs",
+                get(|auth: AuthBearer, state| async move { admin_jobs(auth, state).await }),
+            )
+            .route(
+                "/api/v1/admin/system",
+                get(|auth: AuthBearer, state| async move { admin_system(auth, state).await }),
+            )
             .layer(
                 CorsLayer::new()
                     .allow_origin(frontend_origin)

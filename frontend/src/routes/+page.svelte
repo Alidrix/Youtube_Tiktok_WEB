@@ -1,23 +1,41 @@
-<section class="hero">
-  <div class="inner">
-    <p class="badge">Viral Radar SaaS</p>
-    <h1>Repère les tendances avant les autres.</h1>
-    <p class="lede">Détecte les vidéos qui accélèrent sur YouTube, puis TikTok et Instagram. Gratuit pour commencer, puissant pour scaler.</p>
+<script lang="ts">
+  import PublicHeader from '$lib/components/PublicHeader.svelte';
+  import PublicFooter from '$lib/components/PublicFooter.svelte';
+</script>
+
+<PublicHeader />
+<main class="landing">
+  <section class="hero">
+    <p class="eyebrow">The Trend Scope</p>
+    <h1>Repère les tendances avant les autres.<br />Crée du contenu au bon moment.</h1>
+    <p>Détecte les vidéos qui accélèrent sur YouTube, puis TikTok et Instagram, avant qu’elles soient saturées.</p>
     <div class="actions">
-      <a class="button" href="/login">Se connecter</a>
-      <a class="ghost" href="/pricing">Voir les tarifs</a>
-      <a class="ghost" href="/radar">Radar du jour</a>
+      <a class="primary" href="/register">Commencer gratuitement</a>
+      <a class="ghost" href="/pricing">Voir les offres</a>
+      <a class="ghost" href="/login">Se connecter</a>
     </div>
-  </div>
-</section>
+  </section>
+
+  <section class="grid">
+    <article><h3>Comment ça marche</h3><ol><li>Les workers analysent les tendances</li><li>Le moteur calcule les scores</li><li>Tu consultes ton Radar du jour</li><li>Tu crées du contenu au bon moment</li></ol></article>
+    <article><h3>Pour qui ?</h3><ul><li>Créateurs</li><li>Influenceurs</li><li>Agences social media</li><li>Marques</li><li>Growth marketers</li></ul></article>
+    <article><h3>Preuve de valeur</h3><p>Radar du jour, score de tendance, vues/h, niches en hausse et upgrade simple vers Pro/Studio.</p></article>
+  </section>
+
+  <section class="cta"><h2>Prêt à publier au bon moment ?</h2><a class="primary" href="/pricing">Voir les plans</a></section>
+</main>
+<PublicFooter />
 
 <style>
-  .hero { min-height: 100vh; display: grid; place-items: center; background: var(--bg); padding: 2rem 1rem; }
-  .inner { max-width: 800px; text-align: center; }
-  .badge { display: inline-block; background: #ffe9ec; color: #ba1c2b; padding: .35rem .7rem; border-radius: 999px; font-weight: 600; }
-  h1 { font-size: clamp(2rem, 4.8vw, 3.5rem); color: var(--text); margin: 1rem 0 .6rem; }
-  .lede { color: var(--muted); font-size: 1.05rem; }
-  .actions { display: flex; justify-content: center; flex-wrap: wrap; gap: .7rem; margin-top: 1.3rem; }
-  .button { background: var(--youtube); color: white; padding: .75rem 1rem; border-radius: 12px; font-weight: 700; }
-  .ghost { border: 1px solid var(--border); color: #1b2437; padding: .75rem 1rem; border-radius: 12px; font-weight: 700; background: var(--surface); }
+  .landing { max-width: 1100px; margin: 0 auto; padding: 0 1rem 2rem; }
+  .hero { padding: 4rem 0 2rem; text-align: center; }
+  .eyebrow { color: var(--youtube); font-weight: 700; }
+  h1 { font-size: clamp(2rem, 4.5vw, 3.3rem); margin: .2rem 0 .6rem; }
+  .hero p { color: var(--muted); }
+  .actions { display:flex; gap:.7rem; justify-content:center; flex-wrap:wrap; margin-top:1rem; }
+  .primary { background: var(--primary); color: var(--surface); padding:.7rem 1rem; border-radius:12px; font-weight:700; }
+  .ghost { border:1px solid var(--border); background: var(--surface); padding:.7rem 1rem; border-radius:12px; }
+  .grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(240px,1fr)); gap:1rem; }
+  article { background: var(--surface); border:1px solid var(--border); border-radius:16px; padding:1rem; }
+  .cta { margin-top:1rem; text-align:center; background:var(--surface-soft); border-radius:16px; padding:1.4rem; }
 </style>

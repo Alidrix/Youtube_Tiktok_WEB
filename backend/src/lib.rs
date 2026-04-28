@@ -7,17 +7,21 @@ pub mod models {
     pub mod video;
 }
 pub mod repositories {
+    pub mod admin;
     pub mod audit_logs;
     pub mod consents;
+    pub mod favorites;
     pub mod subscriptions;
     pub mod usage;
     pub mod users;
     pub mod videos;
 }
 pub mod routes {
+    pub mod admin;
     pub mod auth;
     pub mod billing;
     pub mod consents;
+    pub mod favorites;
     pub mod health;
     pub mod me;
     pub mod notes;
