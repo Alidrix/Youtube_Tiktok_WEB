@@ -28,7 +28,7 @@
 ## 🌈 Bannière produit
 
 > **The Trend Scope** est une plateforme SaaS de veille virale pensée pour les créateurs, influenceurs, agences social media et marques.  
-> L’objectif : détecter les tendances vidéo émergentes sur **YouTube**, puis **TikTok** et **Instagram**, avant qu’elles soient saturées.
+> L’objectif : détecter les tendances vidéo émergentes sur **YouTube**. TikTok et Instagram restent sur la roadmap.
 
 <table>
   <tr>
@@ -98,7 +98,7 @@
 | Alertes | ✅ Base CRUD Studio |
 | Rapports | ✅ Base Studio |
 | Admin panel | 🟡 UI prête, données à enrichir |
-| TikTok / Instagram | 🔜 À venir |
+| TikTok | 🔜 Bientôt disponible |
 | Déploiement production | 🔜 À créer |
 
 ---
@@ -683,3 +683,26 @@ Ne jamais exposer publiquement :
 - ClickHouse
 
 Seul Traefik expose `80` et `443`.
+
+
+## État fonctionnel actuel
+
+| Module | État |
+| --- | --- |
+| YouTube | Fonctionnel côté serveur |
+| TikTok | Bientôt disponible |
+| Instagram | Bientôt disponible |
+| Radar | Fonctionnel avec filtre plateforme |
+| Admin panel | Connecté aux vrais endpoints |
+| Watchlists | Fonctionnelles, keywords / plateformes / régions |
+| Alertes Web | Notifications in-app |
+| Alertes Email | Fonctionnelles si SMTP configuré |
+| Alertes Telegram | Fonctionnelles si TELEGRAM_BOT_TOKEN et chat ID configurés |
+| Rapports JSON | Fonctionnels |
+| Rapports CSV | Export local MVP |
+| Rapports PDF | Préparé, à venir |
+| Stripe | Implémenté, à tester live |
+| Cloudflare/Traefik | Préparé production |
+
+
+Note: `webhook_url` est conservé uniquement par compatibilité DB mais n'est pas utilisé dans le scope go-live.

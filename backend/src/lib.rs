@@ -54,6 +54,7 @@ pub mod services {
     pub mod reports;
     pub mod scoring;
     pub mod stripe;
+    pub mod telegram;
     pub mod youtube;
 }
 pub mod sources;

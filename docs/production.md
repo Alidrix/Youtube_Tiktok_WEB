@@ -117,3 +117,20 @@ nano infra/traefik/dynamic.yml
 Ne jamais déployer le dashboard Traefik sans Basic Auth.
 
 En production Docker, l’API passe par PgBouncer pour limiter le nombre de connexions PostgreSQL. PostgreSQL n’est jamais exposé publiquement.
+
+## Telegram alerts
+
+1. Créer un bot avec BotFather.
+2. Récupérer le token du bot.
+3. Ajouter le bot dans le groupe ou canal cible si nécessaire.
+4. Récupérer le chat ID.
+5. Renseigner `.env.production` :
+
+```env
+TELEGRAM_BOT_TOKEN=...
+TELEGRAM_DEFAULT_CHAT_ID=...
+```
+
+Créer une alerte Studio avec le canal `telegram`.
+
+Discord et Slack ne sont pas inclus dans le scope go-live.
