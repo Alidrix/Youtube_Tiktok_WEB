@@ -2,10 +2,11 @@ use dotenvy::dotenv;
 use tokio::time::{sleep, Duration};
 use tracing::{error, info, warn};
 use youtube_tiktok_backend::{
-    app,
+    config::AppConfig,
     error::AppError,
     repositories::videos,
     services::{analytics, cache, queue, scoring, youtube},
+    state::AppState,
 };
 
 #[tokio::main]
@@ -15,7 +16,8 @@ async fn main() -> Result<(), AppError> {
         .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
         .init();
 
-    let state = app::build_state().await?;
+    let config = AppConfig::from_env()?;
+    let state = AppState::from_config(config).await?;
     let interval = state.config.scan.interval_minutes.max(1);
 
     info!(
@@ -89,8 +91,13 @@ async fn main() -> Result<(), AppError> {
                             });
 
                             let (video_id, _) = videos::upsert_video(&state.pool, &item).await?;
-                            videos::insert_video_stat(&state.pool, video_id, item.views_per_hour)
-                                .await?;
+                            videos::insert_video_stat(
+                                &state.pool,
+                                video_id,
+                                &item.platform,
+                                item.views_per_hour,
+                            )
+                            .await?;
                             let _ = cache::set_json(
                                 &state.redis,
                                 &cache_key,
