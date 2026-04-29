@@ -14,6 +14,11 @@ use crate::{
 #[derive(Debug, Deserialize)]
 pub struct GenerateReportPayload {
     pub title: Option<String>,
+    pub period_start: Option<chrono::NaiveDate>,
+    pub period_end: Option<chrono::NaiveDate>,
+    pub platforms: Option<Vec<String>>,
+    pub categories: Option<Vec<String>>,
+    pub format: Option<String>,
 }
 
 fn enforce_studio(plan: &str) -> Result<(), AppError> {
@@ -49,16 +54,29 @@ pub async fn generate_report(
         .fetch_one(&state.pool)
         .await?;
     enforce_studio(&plan)?;
-    let end = chrono::Utc::now().date_naive();
-    let start = end - chrono::Days::new(7);
-    reports::create(
-        &state.pool,
+    let end = payload
+        .period_end
+        .unwrap_or_else(|| chrono::Utc::now().date_naive());
+    let start = payload.period_start.unwrap_or(end - chrono::Days::new(7));
+    let platforms = payload.platforms.unwrap_or_else(|| vec!["youtube".into()]);
+    let categories = payload.categories.unwrap_or_default();
+    let format = payload.format.unwrap_or_else(|| "json".into());
+    if !["json", "csv", "pdf"].contains(&format.as_str()) {
+        return Err(AppError::BadRequest("Unsupported report format".into()));
+    }
+    let new_report = reports::NewReport {
         user_id,
-        payload.title.as_deref().unwrap_or("Weekly trend report"),
-        start,
-        end,
-    )
-    .await?;
+        title: payload
+            .title
+            .clone()
+            .unwrap_or_else(|| "Weekly trend report".into()),
+        period_start: start,
+        period_end: end,
+        platforms,
+        categories,
+        format,
+    };
+    reports::create(&state.pool, &new_report).await?;
     Ok(Json(ApiMessage {
         message: "report generation queued".into(),
     }))
