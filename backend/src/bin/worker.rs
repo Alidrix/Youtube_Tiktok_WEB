@@ -117,7 +117,9 @@ async fn main() -> Result<(), AppError> {
         if let Err(err) = reports::process_pending_reports(&state.pool).await {
             error!(?err, "pending reports processing failed");
         }
-        if let Err(err) = alerts::process_alert_rules_for_recent_trends(&state.pool).await {
+        if let Err(err) =
+            alerts::process_alert_rules_for_recent_trends(&state.pool, &state.config).await
+        {
             error!(?err, "alert rules processing failed");
         }
 

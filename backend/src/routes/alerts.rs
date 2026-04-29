@@ -20,6 +20,14 @@ fn enforce_studio(plan: &str) -> Result<(), AppError> {
     Ok(())
 }
 
+fn validate_alert_channel(channel: &str) -> Result<(), AppError> {
+    match channel {
+        "web" | "email" | "telegram" => Ok(()),
+        _ => Err(AppError::BadRequest(
+            "Unsupported alert channel. Allowed channels: web, email, telegram.".into(),
+        )),
+    }
+}
 pub async fn list_alerts(
     auth: AuthBearer,
     State(state): State<AppState>,
@@ -46,6 +54,7 @@ pub async fn create_alert(
         .fetch_one(&state.pool)
         .await?;
     enforce_studio(&plan)?;
+    validate_alert_channel(payload.channel.as_deref().unwrap_or("web"))?;
     alerts::create(&state.pool, user_id, &payload).await?;
     Ok(Json(ApiMessage {
         message: "alert created".into(),
@@ -64,6 +73,7 @@ pub async fn update_alert(
         .fetch_one(&state.pool)
         .await?;
     enforce_studio(&plan)?;
+    validate_alert_channel(payload.channel.as_deref().unwrap_or("web"))?;
     alerts::update(&state.pool, user_id, id, &payload).await?;
     Ok(Json(ApiMessage {
         message: "alert updated".into(),

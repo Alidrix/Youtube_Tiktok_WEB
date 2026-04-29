@@ -85,6 +85,12 @@ pub struct InstagramConfig {
 }
 
 #[derive(Clone)]
+pub struct TelegramConfig {
+    pub bot_token: String,
+    pub default_chat_id: String,
+}
+
+#[derive(Clone)]
 pub struct ScanConfig {
     pub interval_minutes: u64,
 }
@@ -101,6 +107,7 @@ pub struct AppConfig {
     pub youtube: YoutubeConfig,
     pub tiktok: TiktokConfig,
     pub instagram: InstagramConfig,
+    pub telegram: TelegramConfig,
     pub scan: ScanConfig,
 }
 
@@ -139,6 +146,10 @@ impl AppConfig {
             instagram: InstagramConfig {
                 api_key: std::env::var("INSTAGRAM_API_KEY").unwrap_or_default(),
                 api_base: std::env::var("INSTAGRAM_API_BASE").unwrap_or_default(),
+            },
+            telegram: TelegramConfig {
+                bot_token: std::env::var("TELEGRAM_BOT_TOKEN").unwrap_or_default(),
+                default_chat_id: std::env::var("TELEGRAM_DEFAULT_CHAT_ID").unwrap_or_default(),
             },
             scan: ScanConfig {
                 interval_minutes: std::env::var("SCAN_INTERVAL_MINUTES")
@@ -197,5 +208,18 @@ impl TiktokConfig {
 impl InstagramConfig {
     pub fn is_configured(&self) -> bool {
         !self.api_key.is_empty() && !self.api_base.is_empty()
+    }
+}
+
+impl TelegramConfig {
+    pub fn is_configured(&self) -> bool {
+        !self.bot_token.is_empty()
+    }
+    pub fn fallback_chat_id(&self) -> Option<&str> {
+        if self.default_chat_id.is_empty() {
+            None
+        } else {
+            Some(&self.default_chat_id)
+        }
     }
 }

@@ -16,7 +16,7 @@
   });
 
   const features: Record<string, string[]> = {
-    free: ['3 tendances visibles / jour', 'YouTube disponible', 'TikTok / Instagram preview', 'Stats basiques', 'Pas d’exports', 'Pas d’alertes', 'Pas de rapports'],
+    free: ['3 tendances visibles / jour', 'YouTube disponible', 'TikTok et Instagram prévus dans la roadmap', 'Stats basiques', 'Pas d’exports', 'Pas d’alertes', 'Pas de rapports'],
     pro: ['Tendances illimitées', 'Filtres plateforme / pays / catégorie', 'Vues par heure', 'Score tendance', 'Favoris', 'Notes privées', 'Historique 7 jours'],
     studio: ['Historique 90 jours', 'Alertes personnalisées', 'Rapports hebdomadaires', 'Exports CSV/PDF', 'Watchlist avancée', 'Scores avancés', 'Détection signaux faibles', 'Comparaison cross-platform']
   };
@@ -37,7 +37,7 @@
       </article>
     {/each}
   </div>
-  <section class="faq"><h3>FAQ</h3><p><strong>Puis-je commencer gratuitement ?</strong> Oui, avec le plan Free.</p><p><strong>Puis-je annuler quand je veux ?</strong> Oui, depuis Stripe.</p><p><strong>Est-ce que TikTok et Instagram sont inclus ?</strong> Oui en mode preview.</p><p><strong>Comment sont calculées les tendances ?</strong> Via scoring serveur basé sur signaux de croissance.</p><p><strong>Est-ce que ma clé YouTube est nécessaire ?</strong> Non, The Trend Scope collecte, nettoie et score les tendances côté serveur.</p></section>
+  <section class="faq"><h3>FAQ</h3><p><strong>Puis-je commencer gratuitement ?</strong> Oui, avec le plan Free.</p><p><strong>Puis-je annuler quand je veux ?</strong> Oui, depuis Stripe.</p><p><strong>Est-ce que TikTok et Instagram sont inclus ?</strong> YouTube est disponible maintenant, TikTok et Instagram arrivent prochainement.</p><p><strong>Comment sont calculées les tendances ?</strong> Via scoring serveur basé sur signaux de croissance.</p><p><strong>Est-ce que ma clé YouTube est nécessaire ?</strong> Non, The Trend Scope collecte, nettoie et score les tendances côté serveur.</p></section>
 </main>
 <PublicFooter />
 

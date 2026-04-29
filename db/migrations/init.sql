@@ -202,6 +202,10 @@ CREATE TABLE IF NOT EXISTS alert_rules (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+
+ALTER TABLE alert_rules ADD COLUMN IF NOT EXISTS telegram_chat_id TEXT;
+-- telegram_chat_id is used only when alert_rules.channel = 'telegram'.
+
 CREATE TABLE IF NOT EXISTS alert_deliveries (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     alert_rule_id UUID REFERENCES alert_rules(id) ON DELETE CASCADE,

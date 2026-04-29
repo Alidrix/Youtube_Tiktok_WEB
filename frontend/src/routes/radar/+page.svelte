@@ -53,7 +53,7 @@
   <PageHeader title="Radar du jour" subtitle="Aujourd’hui, les tendances qui accélèrent le plus." />
 
   <div class="filters">
-    <select bind:value={filters.platform} on:change={(e) => updateFilter('platform', (e.target as HTMLSelectElement).value)}><option value="youtube">YouTube</option><option value="tiktok">TikTok</option></select>
+    <select bind:value={filters.platform} on:change={(e) => { const value = (e.target as HTMLSelectElement).value; if (["tiktok", "instagram"].includes(value)) { alert("Cette source arrive bientôt. Le moteur de détection est actuellement optimisé pour YouTube."); } updateFilter("platform", value); }}><option value="youtube">YouTube</option><option value="tiktok">TikTok bientôt disponible</option><option value="instagram">Instagram bientôt disponible</option></select>
     <input placeholder="Region" bind:value={filters.region} on:change={(e) => updateFilter('region', (e.target as HTMLInputElement).value)} />
     <input placeholder="Catégorie" bind:value={filters.category} on:change={(e) => updateFilter('category', (e.target as HTMLInputElement).value)} />
   </div>
