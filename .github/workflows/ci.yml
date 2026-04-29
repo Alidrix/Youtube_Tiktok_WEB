@@ -91,3 +91,12 @@ jobs:
       - name: Stop stack
         if: always()
         run: docker compose down -v
+
+  prod-compose-config:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prepare prod env
+        run: cp .env.production.example .env.production
+      - name: Validate production compose
+        run: docker compose --env-file .env.production -f docker-compose.prod.yml config

@@ -624,3 +624,28 @@ docker compose down -v
 ## Production & Monetization update
 
 Stripe checkout/portal/webhook, user role+plan, dynamic radar filters, favorites API integration, watchlists, alerts, reports, forgot/reset password, readiness and metrics endpoints are now wired in the app.
+
+## 🚀 Production avec Traefik + Cloudflare
+
+La production officielle utilise:
+
+- Cloudflare DNS / Proxy / WAF
+- Cloudflare SSL/TLS Full (strict)
+- Traefik v3 comme reverse proxy Docker
+- Let’s Encrypt DNS-01 via Cloudflare
+- Frontend sur `https://thetrendscope.com`
+- API sur `https://api.thetrendscope.com`
+- Dashboard Traefik protégé sur `https://traefik.thetrendscope.com`
+
+```bash
+cp .env.production.example .env.production
+nano .env.production
+chmod +x scripts/prod-*.sh
+./scripts/prod-up.sh
+./scripts/prod-check.sh
+```
+
+> ⚠️ Nginx n'est plus le reverse proxy production officiel.
+>
+> ⚠️ Ne jamais exposer PostgreSQL, Redis, NATS ou ClickHouse publiquement.
+> Seul Traefik doit exposer les ports 80 et 443.
