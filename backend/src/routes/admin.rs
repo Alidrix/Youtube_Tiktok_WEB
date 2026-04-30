@@ -1,6 +1,6 @@
 use crate::{
     error::AppError,
-    repositories::{admin, email_logs, notifications, reports, subscriptions},
+    repositories::{admin, admin_audit_logs, email_logs, notifications, reports, subscriptions},
     services::{
         access::ensure_admin,
         email, stripe,
@@ -15,7 +15,7 @@ use axum::{
     Json,
 };
 use serde::Deserialize;
-use serde_json::json;
+use serde_json::{json, Value};
 #[derive(Debug, Deserialize)]
 pub struct AdminUsersQuery {
     pub page: Option<i64>,
@@ -32,6 +32,33 @@ pub struct TestTelegramPayload {
 pub struct TestSmtpPayload {
     pub to: String,
 }
+
+async fn audit_admin_action(
+    state: &AppState,
+    admin_username: &str,
+    action: &str,
+    target: Option<&str>,
+    status: &str,
+    metadata: Value,
+) {
+    if let Err(err) = admin_audit_logs::create(
+        &state.pool,
+        admin_audit_logs::CreateAdminAuditLog {
+            admin_username,
+            action,
+            target,
+            status,
+            ip_address: None,
+            user_agent: None,
+            metadata,
+        },
+    )
+    .await
+    {
+        tracing::warn!(?err, action, "failed to write admin audit log");
+    }
+}
+
 pub async fn overview(
     auth: AuthBearer,
     State(state): State<AppState>,
@@ -41,6 +68,7 @@ pub async fn overview(
         admin::overview_snapshot(&state.pool, &state.config).await?,
     ))
 }
+// ... unchanged endpoints
 pub async fn users(
     auth: AuthBearer,
     State(state): State<AppState>,
@@ -72,6 +100,7 @@ pub async fn jobs(
     ensure_admin(&state.pool, &auth.sub).await?;
     Ok(Json(json!(reports::jobs_snapshot(&state.pool).await?)))
 }
+
 pub async fn system(
     auth: AuthBearer,
     State(state): State<AppState>,
@@ -86,10 +115,20 @@ pub async fn system(
         "configured"
     };
     let s3 = s3_status(&state);
+    audit_admin_action(
+        &state,
+        &auth.sub,
+        "system",
+        None,
+        "ok",
+        json!({"postgres": pg, "redis": redis, "nats": nats}),
+    )
+    .await;
     Ok(Json(
         json!({"runtime":{"env":state.config.env,"frontend_origin":state.config.frontend_origin},"services":{"postgres":pg,"redis":redis,"nats":nats,"clickhouse":ch},"integrations":integration_statuses(&state),"storage":{"local_exports_dir":state.config.storage.local_exports_dir,"s3":s3}}),
     ))
 }
+
 pub async fn billing(
     auth: AuthBearer,
     State(state): State<AppState>,
@@ -97,14 +136,42 @@ pub async fn billing(
     ensure_admin(&state.pool, &auth.sub).await?;
     let mut snap = subscriptions::admin_billing_snapshot(&state.pool).await?;
     snap["stripe"] = stripe_flags();
+    audit_admin_action(
+        &state,
+        &auth.sub,
+        "billing",
+        None,
+        "ok",
+        json!({"stripe": snap["stripe"]}),
+    )
+    .await;
     Ok(Json(snap))
 }
+
 pub async fn go_live_checklist(
     auth: AuthBearer,
     State(state): State<AppState>,
 ) -> Result<Json<serde_json::Value>, AppError> {
     ensure_admin(&state.pool, &auth.sub).await?;
+    audit_admin_action(
+        &state,
+        &auth.sub,
+        "go_live_checklist",
+        None,
+        "ok",
+        json!({}),
+    )
+    .await;
     Ok(Json(json!({ "items": go_live_items(&state).await })))
+}
+
+pub async fn audit_logs(
+    auth: AuthBearer,
+    State(state): State<AppState>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    ensure_admin(&state.pool, &auth.sub).await?;
+    let logs = admin_audit_logs::latest(&state.pool, 100).await?;
+    Ok(Json(json!({ "logs": logs })))
 }
 
 async fn go_live_items(state: &AppState) -> Vec<serde_json::Value> {
@@ -121,7 +188,6 @@ async fn go_live_items(state: &AppState) -> Vec<serde_json::Value> {
         json!({"key":"exports","label":"Local exports directory configured","status":"ok","blocking":false}),
     ]
 }
-
 async fn postgres_status(state: &AppState) -> &'static str {
     if sqlx::query_scalar::<_, i32>("SELECT 1")
         .fetch_one(&state.pool)
@@ -133,7 +199,6 @@ async fn postgres_status(state: &AppState) -> &'static str {
         "error"
     }
 }
-
 async fn redis_status(state: &AppState) -> &'static str {
     if state.redis.get_connection().is_ok() {
         "ok"
@@ -141,7 +206,6 @@ async fn redis_status(state: &AppState) -> &'static str {
         "error"
     }
 }
-
 async fn metrics_status(state: &AppState) -> &'static str {
     let users_ok = sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM users")
         .fetch_one(&state.pool)
@@ -157,7 +221,6 @@ async fn metrics_status(state: &AppState) -> &'static str {
         "error"
     }
 }
-
 fn nats_status(state: &AppState) -> &'static str {
     if state.config.nats.nats_url.trim().is_empty() {
         "not_configured"
@@ -165,7 +228,41 @@ fn nats_status(state: &AppState) -> &'static str {
         "configured"
     }
 }
-
+async fn local_storage_status(state: &AppState) -> &'static str {
+    if state.config.storage.local_exports_dir.trim().is_empty() {
+        return "not_configured";
+    }
+    if tokio::fs::create_dir_all(&state.config.storage.local_exports_dir)
+        .await
+        .is_ok()
+    {
+        "ok"
+    } else {
+        "error"
+    }
+}
+fn smoke_blocking_map() -> serde_json::Value {
+    json!({"postgres": true,"redis": true,"nats": true,"youtube_config": true,"stripe_config": true,"storage": true,"smtp_config": false,"telegram_config": false,"metrics": false})
+}
+fn smoke_is_ok(checks: &serde_json::Value) -> bool {
+    let acceptable = ["ok", "configured"];
+    [
+        "postgres",
+        "redis",
+        "nats",
+        "youtube_config",
+        "stripe_config",
+        "storage",
+    ]
+    .iter()
+    .all(|key| {
+        checks
+            .get(*key)
+            .and_then(|v| v.as_str())
+            .map(|status| acceptable.contains(&status))
+            .unwrap_or(false)
+    })
+}
 fn s3_status(state: &AppState) -> &'static str {
     if [
         state.config.storage.s3_endpoint.as_str(),
@@ -181,30 +278,13 @@ fn s3_status(state: &AppState) -> &'static str {
         "not_configured"
     }
 }
-
 fn integration_statuses(state: &AppState) -> serde_json::Value {
-    json!({
-        "youtube": if state.config.youtube.api_key.is_empty() { "not_configured" } else { "configured" },
-        "stripe": if stripe::config_from_env().is_some() { "configured" } else { "not_configured" },
-        "smtp": if state.config.smtp.is_configured() { "configured" } else { "not_configured" },
-        "telegram": if state.config.telegram.is_configured() { "configured" } else { "not_configured" },
-        "cloudflare": if std::env::var("CF_DNS_API_TOKEN").unwrap_or_default().is_empty() {
-            "not_configured"
-        } else {
-            "configured"
-        }
-    })
+    json!({"youtube": if state.config.youtube.api_key.is_empty() { "not_configured" } else { "configured" },"stripe": if stripe::config_from_env().is_some() { "configured" } else { "not_configured" },"smtp": if state.config.smtp.is_configured() { "configured" } else { "not_configured" },"telegram": if state.config.telegram.is_configured() { "configured" } else { "not_configured" },"cloudflare": if std::env::var("CF_DNS_API_TOKEN").unwrap_or_default().is_empty() {"not_configured"} else {"configured"}})
+}
+fn stripe_flags() -> serde_json::Value {
+    json!({"configured": stripe::config_from_env().is_some(),"webhook_configured": !std::env::var("STRIPE_WEBHOOK_SECRET").unwrap_or_default().is_empty(),"price_pro_configured": !std::env::var("STRIPE_PRICE_PRO_MONTHLY").unwrap_or_default().is_empty(),"price_studio_configured": !std::env::var("STRIPE_PRICE_STUDIO_MONTHLY").unwrap_or_default().is_empty()})
 }
 
-fn stripe_flags() -> serde_json::Value {
-    json!({
-        "configured": stripe::config_from_env().is_some(),
-        "webhook_configured": !std::env::var("STRIPE_WEBHOOK_SECRET").unwrap_or_default().is_empty(),
-        "price_pro_configured": !std::env::var("STRIPE_PRICE_PRO_MONTHLY").unwrap_or_default().is_empty(),
-        "price_studio_configured": !std::env::var("STRIPE_PRICE_STUDIO_MONTHLY").unwrap_or_default().is_empty()
-    })
-}
-// existing misc
 pub async fn email_logs_list(
     auth: AuthBearer,
     State(state): State<AppState>,
@@ -226,13 +306,19 @@ pub async fn exports_list(
     State(state): State<AppState>,
 ) -> Result<Json<serde_json::Value>, AppError> {
     ensure_admin(&state.pool, &auth.sub).await?;
-    let exports = reports::latest_exports(&state.pool)
-        .await?
-        .into_iter()
-        .map(|r| json!({"id":r.id,"title":r.title,"format":r.format,"file_url":r.file_url,"created_at":r.created_at}))
-        .collect::<Vec<_>>();
+    let exports = reports::latest_exports(&state.pool).await?.into_iter().map(|r| json!({"id":r.id,"title":r.title,"format":r.format,"file_url":r.file_url,"created_at":r.created_at})).collect::<Vec<_>>();
+    audit_admin_action(
+        &state,
+        &auth.sub,
+        "exports_list",
+        None,
+        "ok",
+        json!({"count": exports.len()}),
+    )
+    .await;
     Ok(Json(json!({"exports":exports})))
 }
+
 pub async fn test_telegram(
     auth: AuthBearer,
     State(state): State<AppState>,
@@ -240,6 +326,7 @@ pub async fn test_telegram(
 ) -> Result<Json<serde_json::Value>, AppError> {
     ensure_admin(&state.pool, &auth.sub).await?;
     if !state.config.telegram.is_configured() {
+        audit_admin_action(&state, &auth.sub, "test_telegram", None, "failed", json!({"chat_id_provided": payload.chat_id.is_some(),"configured": state.config.telegram.is_configured()})).await;
         return Ok(Json(json!({"sent":false,"reason":"not_configured"})));
     };
     let chat_id = payload.chat_id.or_else(|| {
@@ -250,6 +337,15 @@ pub async fn test_telegram(
             .map(|x| x.to_string())
     });
     let Some(chat_id) = chat_id else {
+        audit_admin_action(
+            &state,
+            &auth.sub,
+            "test_telegram",
+            None,
+            "failed",
+            json!({"chat_id_provided": false,"configured": true}),
+        )
+        .await;
         return Ok(Json(json!({"sent":false,"reason":"chat_id_missing"})));
     };
     send_telegram_alert(
@@ -266,8 +362,18 @@ pub async fn test_telegram(
         },
     )
     .await?;
+    audit_admin_action(
+        &state,
+        &auth.sub,
+        "test_telegram",
+        None,
+        "sent",
+        json!({"chat_id_provided": true,"configured": true}),
+    )
+    .await;
     Ok(Json(json!({"sent":true})))
 }
+
 pub async fn test_smtp(
     auth: AuthBearer,
     State(state): State<AppState>,
@@ -275,6 +381,15 @@ pub async fn test_smtp(
 ) -> Result<Json<serde_json::Value>, AppError> {
     ensure_admin(&state.pool, &auth.sub).await?;
     if !state.config.smtp.is_configured() {
+        audit_admin_action(
+            &state,
+            &auth.sub,
+            "test_smtp",
+            Some(&payload.to),
+            "failed",
+            json!({"configured": false}),
+        )
+        .await;
         return Ok(Json(json!({"sent":false,"reason":"not_configured"})));
     };
     email::send_email(
@@ -286,27 +401,69 @@ pub async fn test_smtp(
         "<p>SMTP test admin</p>",
     )
     .await?;
+    audit_admin_action(
+        &state,
+        &auth.sub,
+        "test_smtp",
+        Some(&payload.to),
+        "sent",
+        json!({"configured": true}),
+    )
+    .await;
     Ok(Json(json!({"sent":true})))
 }
+
 pub async fn test_youtube(
     auth: AuthBearer,
     State(state): State<AppState>,
 ) -> Result<Json<serde_json::Value>, AppError> {
     ensure_admin(&state.pool, &auth.sub).await?;
     if state.config.youtube.api_key.is_empty() {
+        audit_admin_action(
+            &state,
+            &auth.sub,
+            "test_youtube",
+            None,
+            "failed",
+            json!({"configured": false}),
+        )
+        .await;
         return Ok(Json(
             json!({"ok":false,"reason":"not_configured","message":"YouTube API key is not configured"}),
         ));
     };
     match youtube::validate_api_key(&state.http, &state.config.youtube).await {
-        Ok(_) => Ok(Json(
-            json!({"ok":true,"message":"YouTube API key accepted"}),
-        )),
-        Err(_) => Ok(Json(
-            json!({"ok":false,"reason":"youtube_api_error","message":"youtube api validation failed"}),
-        )),
+        Ok(_) => {
+            audit_admin_action(
+                &state,
+                &auth.sub,
+                "test_youtube",
+                None,
+                "ok",
+                json!({"configured": true}),
+            )
+            .await;
+            Ok(Json(
+                json!({"ok":true,"message":"YouTube API key accepted"}),
+            ))
+        }
+        Err(_) => {
+            audit_admin_action(
+                &state,
+                &auth.sub,
+                "test_youtube",
+                None,
+                "failed",
+                json!({"configured": true}),
+            )
+            .await;
+            Ok(Json(
+                json!({"ok":false,"reason":"youtube_api_error","message":"youtube api validation failed"}),
+            ))
+        }
     }
 }
+
 pub async fn test_stripe(
     auth: AuthBearer,
     State(state): State<AppState>,
@@ -317,6 +474,7 @@ pub async fn test_stripe(
         && configured["webhook_secret"].as_bool() == Some(true)
         && configured["pro_price"].as_bool() == Some(true)
         && configured["studio_price"].as_bool() == Some(true);
+    audit_admin_action(&state, &auth.sub, "test_stripe", None, if ok {"ok"} else {"failed"}, json!({"secret_key_configured": configured["secret_key"],"webhook_configured": configured["webhook_secret"],"pro_price_configured": configured["pro_price"],"studio_price_configured": configured["studio_price"]})).await;
     if ok {
         Ok(Json(json!({"ok":true,"configured":configured})))
     } else {
@@ -331,55 +489,34 @@ pub async fn smoke(
     State(state): State<AppState>,
 ) -> Result<Json<serde_json::Value>, AppError> {
     ensure_admin(&state.pool, &auth.sub).await?;
-    let storage = if state.config.storage.local_exports_dir.trim().is_empty() {
-        "not_configured"
-    } else if tokio::fs::create_dir_all(&state.config.storage.local_exports_dir)
-        .await
-        .is_ok()
-    {
-        "ok"
-    } else {
-        "error"
-    };
-
-    let checks = json!({
-        "postgres": postgres_status(&state).await,
-        "redis": redis_status(&state).await,
-        "nats": nats_status(&state),
-        "metrics": metrics_status(&state).await,
-        "youtube_config": if state.config.youtube.api_key.is_empty() { "not_configured" } else { "configured" },
-        "stripe_config": if stripe::config_from_env().is_some() { "configured" } else { "not_configured" },
-        "smtp_config": if state.config.smtp.is_configured() { "configured" } else { "not_configured" },
-        "telegram_config": if state.config.telegram.is_configured() { "configured" } else { "not_configured" },
-        "storage": storage
-    });
-    let blocking = json!({
-        "postgres": true,
-        "redis": true,
-        "nats": true,
-        "youtube_config": true,
-        "stripe_config": true,
-        "storage": true,
-        "smtp_config": false,
-        "telegram_config": false,
-        "metrics": false
-    });
-
-    let mut ok = true;
-    let acceptable = ["ok", "configured"];
-    for key in [
+    let checks = json!({"postgres": postgres_status(&state).await,"redis": redis_status(&state).await,"nats": nats_status(&state),"metrics": metrics_status(&state).await,"youtube_config": if state.config.youtube.api_key.is_empty() { "not_configured" } else { "configured" },"stripe_config": if stripe::config_from_env().is_some() { "configured" } else { "not_configured" },"smtp_config": if state.config.smtp.is_configured() { "configured" } else { "not_configured" },"telegram_config": if state.config.telegram.is_configured() { "configured" } else { "not_configured" },"storage": local_storage_status(&state).await});
+    let blocking = smoke_blocking_map();
+    let ok = smoke_is_ok(&checks);
+    let blocking_failed = [
         "postgres",
         "redis",
         "nats",
         "youtube_config",
         "stripe_config",
         "storage",
-    ] {
-        let status = checks.get(key).and_then(|v| v.as_str()).unwrap_or("error");
-        if !acceptable.contains(&status) {
-            ok = false;
-        }
-    }
-
+    ]
+    .iter()
+    .filter(|k| {
+        checks
+            .get(**k)
+            .and_then(|v| v.as_str())
+            .map(|x| !["ok", "configured"].contains(&x))
+            .unwrap_or(true)
+    })
+    .count();
+    audit_admin_action(
+        &state,
+        &auth.sub,
+        "smoke",
+        None,
+        if ok { "ok" } else { "failed" },
+        json!({"ok": ok, "blocking_failed": blocking_failed}),
+    )
+    .await;
     Ok(Json(json!({"ok":ok,"checks":checks,"blocking":blocking})))
 }

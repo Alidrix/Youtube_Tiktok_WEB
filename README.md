@@ -797,3 +797,15 @@ Le cockpit admin est accessible aux comptes `admin`.
 | `/admin/billing` | Abonnements, MRR estimé et état Stripe |
 | `/admin/ops` | Tests SMTP, Telegram, YouTube, Stripe et smoke interne |
 | `/admin/go-live` | Checklist préproduction avant VPS |
+
+
+## Sauvegarde et audit admin
+
+| Script | Rôle |
+| --- | --- |
+| `scripts/prod-backup.sh` | Sauvegarde PostgreSQL |
+| `scripts/prod-restore.sh` | Restauration PostgreSQL |
+| `scripts/prod-backup-exports.sh` | Sauvegarde des exports locaux |
+| `scripts/prod-volumes-check.sh` | Vérification volumes / espace Docker |
+
+Le cockpit admin expose aussi `/admin/audit` pour consulter les dernières actions administrateur.

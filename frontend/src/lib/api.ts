@@ -248,6 +248,23 @@ export type AdminExport = {
   file_url?: string | null;
   created_at?: string;
 };
+
+export type AdminAuditLog = {
+  id: string;
+  admin_username: string;
+  action: string;
+  target?: string | null;
+  status: string;
+  ip_address?: string | null;
+  user_agent?: string | null;
+  metadata?: Record<string, unknown>;
+  created_at?: string;
+};
+
+export type AdminAuditLogsResponse = {
+  logs: AdminAuditLog[];
+};
+
 export type AdminNotificationSnapshot = {
   total: number;
   unread: number;
@@ -345,3 +362,6 @@ export const runAdminYoutubeCheck = testAdminYoutube;
 export const runAdminStripeCheck = testAdminStripe;
 export const fetchAdminSmoke = () =>
   request("/admin/smoke") as Promise<AdminSmoke>;
+
+export const fetchAdminAuditLogs = () =>
+  request('/admin/audit-logs') as Promise<AdminAuditLogsResponse>;

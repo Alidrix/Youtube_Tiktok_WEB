@@ -7,3 +7,7 @@
 
 infra/traefik/dynamic.yml
 .env.production
+
+backups/
+*.sql
+*.tar.gz

@@ -245,3 +245,38 @@ Après déploiement VPS :
 10. Vérifier les exports.
 11. Ouvrir `/admin/go-live`.
 12. Corriger tous les items bloquants.
+
+
+## Sauvegardes production
+
+### Sauvegarder PostgreSQL
+
+```bash
+./scripts/prod-backup.sh
+```
+
+### Restaurer PostgreSQL
+
+```bash
+./scripts/prod-restore.sh backups/postgres/postgres-YYYYMMDD-HHMMSS.sql
+```
+
+### Sauvegarder les exports
+
+```bash
+./scripts/prod-backup-exports.sh
+```
+
+### Vérifier volumes et espace Docker
+
+```bash
+./scripts/prod-volumes-check.sh
+```
+
+## Audit admin
+
+Les actions sensibles du cockpit admin sont journalisées dans `admin_audit_logs`.
+
+Page disponible : `/admin/audit`
+
+Ne jamais stocker de secrets dans l’audit.
