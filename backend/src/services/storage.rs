@@ -53,7 +53,7 @@ mod tests {
     fn rejects_path_traversal() {
         assert_eq!(sanitize_export_filename("../secret.csv"), None);
         assert_eq!(sanitize_export_filename("nested/report.csv"), None);
-        assert_eq!(sanitize_export_filename("nested\report.csv"), None);
+        assert_eq!(sanitize_export_filename("nested\\report.csv"), None);
     }
 
     #[test]

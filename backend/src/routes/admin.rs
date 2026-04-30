@@ -266,3 +266,21 @@ pub async fn test_stripe(
         ))
     }
 }
+
+pub async fn smoke(
+    auth: AuthBearer,
+    State(state): State<AppState>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    ensure_admin(&state.pool, &auth.sub).await?;
+    Ok(Json(json!({"ok":true,"checks":{
+        "postgres":postgres_status(&state).await,
+        "redis":redis_status(&state).await,
+        "nats":nats_status(&state),
+        "metrics":"ok",
+        "youtube_config":if state.config.youtube.api_key.is_empty(){"not_configured"}else{"configured"},
+        "stripe_config":if stripe::config_from_env().is_some(){"configured"}else{"not_configured"},
+        "smtp_config":if state.config.smtp.is_configured(){"configured"}else{"not_configured"},
+        "telegram_config":if state.config.telegram.is_configured(){"configured"}else{"not_configured"},
+        "storage":"ok"
+    }})))
+}

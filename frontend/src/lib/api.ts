@@ -121,3 +121,5 @@ export const testAdminSmtp = (payload: { to: string }) =>
 export const fetchAdminGoLiveChecklist = () => request('/admin/go-live-checklist') as Promise<GoLiveChecklistResponse>;
 export const testAdminYoutube = () => request('/admin/test-youtube', { method: 'POST' });
 export const testAdminStripe = () => request('/admin/test-stripe', { method: 'POST' });
+
+export const fetchAdminSmoke = () => request('/admin/smoke');
