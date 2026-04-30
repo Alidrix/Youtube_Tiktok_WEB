@@ -268,3 +268,21 @@ jobs:
           grep -q "services" frontend/src/routes/admin/system/+page.svelte
           grep -q "mrr.estimate_cents" frontend/src/routes/admin/billing/+page.svelte
           grep -q "reports.pending" frontend/src/routes/admin/+page.svelte
+
+      - name: Final admin polish guards
+        run: |
+          grep -q "fetchAdminSmoke" frontend/src/lib/api.ts
+          grep -q "/api/v1/admin/smoke" backend/src/app.rs
+          grep -q "Blocking checks" frontend/src/lib/components/GoLiveChecklist.svelte
+          grep -q "MRR estimé" frontend/src/routes/admin/billing/+page.svelte
+          grep -q "testAdminYoutube" frontend/src/routes/admin/ops/+page.svelte
+          grep -q "testAdminStripe" frontend/src/routes/admin/ops/+page.svelte
+          grep -q "AdminSection" frontend/src/routes/admin/ops/+page.svelte
+          grep -q "DataTable" frontend/src/routes/admin/ops/+page.svelte
+
+      - name: Admin ops UX guard
+        run: |
+          if grep -q "JSON.stringify" frontend/src/routes/admin/ops/+page.svelte; then
+            echo "Admin ops must not display raw JSON.stringify results"
+            exit 1
+          fi
