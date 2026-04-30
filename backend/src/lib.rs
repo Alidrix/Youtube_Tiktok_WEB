@@ -10,6 +10,7 @@ pub mod models {
 }
 pub mod repositories {
     pub mod admin;
+    pub mod admin_audit_logs;
     pub mod alerts;
     pub mod audit_logs;
     pub mod consents;

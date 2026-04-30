@@ -11,11 +11,12 @@ use crate::{
     repositories::users::ensure_seed_user,
     routes::{
         admin::{
-            billing as admin_billing, email_logs_list as admin_email_logs,
-            exports_list as admin_exports, go_live_checklist as admin_go_live_checklist,
-            jobs as admin_jobs, notifications_snapshot as admin_notifications,
-            overview as admin_overview, smoke as admin_smoke, sources as admin_sources,
-            system as admin_system, test_smtp as admin_test_smtp, test_stripe as admin_test_stripe,
+            audit_logs as admin_audit_logs, billing as admin_billing,
+            email_logs_list as admin_email_logs, exports_list as admin_exports,
+            go_live_checklist as admin_go_live_checklist, jobs as admin_jobs,
+            notifications_snapshot as admin_notifications, overview as admin_overview,
+            smoke as admin_smoke, sources as admin_sources, system as admin_system,
+            test_smtp as admin_test_smtp, test_stripe as admin_test_stripe,
             test_telegram as admin_test_telegram, test_youtube as admin_test_youtube,
             users as admin_users,
         },
@@ -205,6 +206,7 @@ pub fn build_router(state: AppState) -> Result<Router, AppError> {
             .route("/api/v1/admin/test-stripe", post(|auth: AuthBearer, state| async move { admin_test_stripe(auth, state).await }))
             .route("/api/v1/admin/go-live-checklist", get(|auth: AuthBearer, state| async move { admin_go_live_checklist(auth, state).await }))
             .route("/api/v1/admin/smoke", get(|auth: AuthBearer, state| async move { admin_smoke(auth, state).await }))
+            .route("/api/v1/admin/audit-logs", get(|auth: AuthBearer, state| async move { admin_audit_logs(auth, state).await }))
             .route(
                 "/api/v1/admin/billing",
                 get(|auth: AuthBearer, state| async move { admin_billing(auth, state).await }),
