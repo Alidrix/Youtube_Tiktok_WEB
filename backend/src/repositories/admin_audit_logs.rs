@@ -46,16 +46,33 @@ pub async fn create(pool: &PgPool, input: CreateAdminAuditLog<'_>) -> Result<(),
     Ok(())
 }
 
-pub async fn latest(pool: &PgPool, limit: i64) -> Result<Vec<AdminAuditLogRow>, AppError> {
+#[derive(Debug, Clone)]
+pub struct AdminAuditLogFilters {
+    pub limit: i64,
+    pub action: Option<String>,
+    pub status: Option<String>,
+    pub admin_username: Option<String>,
+}
+
+pub async fn search(
+    pool: &PgPool,
+    filters: &AdminAuditLogFilters,
+) -> Result<Vec<AdminAuditLogRow>, AppError> {
     sqlx::query_as::<_, AdminAuditLogRow>(
         r#"
         SELECT id, admin_username, action, target, status, ip_address, user_agent, metadata, created_at
         FROM admin_audit_logs
+        WHERE ($1::TEXT IS NULL OR action = $1)
+          AND ($2::TEXT IS NULL OR status = $2)
+          AND ($3::TEXT IS NULL OR admin_username = $3)
         ORDER BY created_at DESC
-        LIMIT $1
+        LIMIT $4
         "#,
     )
-    .bind(limit.clamp(1, 200))
+    .bind(filters.action.as_deref())
+    .bind(filters.status.as_deref())
+    .bind(filters.admin_username.as_deref())
+    .bind(filters.limit.clamp(1, 500))
     .fetch_all(pool)
     .await
     .map_err(AppError::from)

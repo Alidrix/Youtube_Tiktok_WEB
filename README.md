@@ -809,3 +809,23 @@ Le cockpit admin est accessible aux comptes `admin`.
 | `scripts/prod-volumes-check.sh` | Vérification volumes / espace Docker |
 
 Le cockpit admin expose aussi `/admin/audit` pour consulter les dernières actions administrateur.
+
+## Backups préproduction / production
+
+Les backups PostgreSQL sont compressés et accompagnés d’un checksum SHA256.
+
+Commandes principales :
+
+```bash
+./scripts/prod-backup.sh
+./scripts/prod-backup-exports.sh
+./scripts/prod-volumes-check.sh
+```
+
+Pour restaurer :
+
+```bash
+./scripts/prod-restore.sh backups/postgres/postgres-YYYYMMDD-HHMMSS.sql.gz
+```
+
+Le script de restauration crée un backup de sécurité avant restauration, sauf si `SKIP_PRE_RESTORE_BACKUP=1`.
