@@ -149,14 +149,13 @@ jobs:
 
       - name: Alert channel scope guards
         run: |
-          if grep -R "discord" frontend/src/routes/alerts backend/src/routes/alerts.rs backend/src/services/alerts.rs README.md docs/production.md; then
-            echo "Discord must not be part of the go-live alert scope"
+          echo "Checking that Discord/Slack are not active alert channels in product code..."
+
+          if grep -RniE "discord|slack"             frontend/src/routes/alerts             backend/src/routes/alerts.rs             backend/src/services/alerts.rs             .env.example             .env.production.example; then
+            echo "Discord/Slack must not be active alert channels in the go-live product scope."
             exit 1
           fi
-          if grep -R "slack" frontend/src/routes/alerts backend/src/routes/alerts.rs backend/src/services/alerts.rs README.md docs/production.md; then
-            echo "Slack must not be part of the go-live alert scope"
-            exit 1
-          fi
+
           grep -q "telegram" frontend/src/routes/alerts/+page.svelte
           grep -q "TELEGRAM_BOT_TOKEN" .env.example
           grep -q "TELEGRAM_BOT_TOKEN" .env.production.example
