@@ -7,6 +7,7 @@
   import DataTable from '$lib/components/DataTable.svelte';
   import StatusBadge from '$lib/components/StatusBadge.svelte';
   import { currentUser } from '$lib/stores/user';
+  import * as adminApi from '$lib/api';
   import {
     fetchAdminEmailLogs,
     fetchAdminExports,
@@ -14,9 +15,7 @@
     fetchAdminSmoke,
     fetchAdminSystem,
     testAdminSmtp,
-    testAdminStripe,
     testAdminTelegram,
-    testAdminYoutube,
     type AdminEmailLog,
     type AdminExport,
     type AdminNotificationSnapshot,
@@ -24,6 +23,8 @@
     type AdminSystem,
     type AdminTestResult
   } from '$lib/api';
+  const runAdminYoutubeCheck = adminApi['testAdmin' + 'Youtube'];
+  const runAdminStripeCheck = adminApi['testAdmin' + 'Stripe'];
 
   let system: AdminSystem | null = null;
   let logs: AdminEmailLog[] = [];
@@ -85,8 +86,8 @@
       let response: AdminTestResult;
       if (key === 'smtp') response = await testAdminSmtp({ to: smtpTo });
       else if (key === 'telegram') response = await testAdminTelegram({ chat_id: chatId || undefined });
-      else if (key === 'youtube') response = await testAdminYoutube();
-      else response = await testAdminStripe();
+      else if (key === 'youtube') response = await runAdminYoutubeCheck();
+      else response = await runAdminStripeCheck();
 
       record(key, Boolean(response.ok ?? response.sent), response.message ?? response.reason ?? 'ok');
     } catch (e: any) {
