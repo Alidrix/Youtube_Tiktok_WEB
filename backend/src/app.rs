@@ -206,7 +206,7 @@ pub fn build_router(state: AppState) -> Result<Router, AppError> {
             .route("/api/v1/admin/test-stripe", post(|auth: AuthBearer, state| async move { admin_test_stripe(auth, state).await }))
             .route("/api/v1/admin/go-live-checklist", get(|auth: AuthBearer, state| async move { admin_go_live_checklist(auth, state).await }))
             .route("/api/v1/admin/smoke", get(|auth: AuthBearer, state| async move { admin_smoke(auth, state).await }))
-            .route("/api/v1/admin/audit-logs", get(|auth: AuthBearer, state| async move { admin_audit_logs(auth, state).await }))
+            .route("/api/v1/admin/audit-logs", get(|auth: AuthBearer, state, query| async move { admin_audit_logs(auth, state, query).await }))
             .route(
                 "/api/v1/admin/billing",
                 get(|auth: AuthBearer, state| async move { admin_billing(auth, state).await }),

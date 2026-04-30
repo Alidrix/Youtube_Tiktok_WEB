@@ -25,6 +25,15 @@ pub struct AdminUsersQuery {
     pub search: Option<String>,
 }
 #[derive(Debug, Deserialize)]
+pub struct AuditLogsQuery {
+    pub limit: Option<i64>,
+    pub action: Option<String>,
+    pub status: Option<String>,
+    pub admin_username: Option<String>,
+    pub since: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
 pub struct TestTelegramPayload {
     pub chat_id: Option<String>,
 }
@@ -168,9 +177,19 @@ pub async fn go_live_checklist(
 pub async fn audit_logs(
     auth: AuthBearer,
     State(state): State<AppState>,
+    Query(q): Query<AuditLogsQuery>,
 ) -> Result<Json<serde_json::Value>, AppError> {
     ensure_admin(&state.pool, &auth.sub).await?;
-    let logs = admin_audit_logs::latest(&state.pool, 100).await?;
+    if q.since.is_some() {
+        tracing::debug!("audit_logs: `since` filter is not implemented yet");
+    }
+    let filters = admin_audit_logs::AdminAuditLogFilters {
+        limit: q.limit.unwrap_or(100),
+        action: q.action,
+        status: q.status,
+        admin_username: q.admin_username,
+    };
+    let logs = admin_audit_logs::search(&state.pool, &filters).await?;
     Ok(Json(json!({ "logs": logs })))
 }
 

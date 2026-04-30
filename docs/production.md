@@ -280,3 +280,16 @@ Les actions sensibles du cockpit admin sont journalisées dans `admin_audit_logs
 Page disponible : `/admin/audit`
 
 Ne jamais stocker de secrets dans l’audit.
+
+## Runbook restauration PostgreSQL
+
+1. Prévenir l’équipe.
+2. Vérifier le fichier backup.
+3. Vérifier le checksum `.sha256`.
+4. Lancer un backup de sécurité.
+5. Restaurer avec `./scripts/prod-restore.sh`.
+6. Vérifier `/api/v1/health`.
+7. Vérifier `/api/v1/ready`.
+8. Vérifier `/admin/system`.
+9. Vérifier `/admin/audit`.
+10. Vérifier les derniers rapports / exports.

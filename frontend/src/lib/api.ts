@@ -265,6 +265,13 @@ export type AdminAuditLogsResponse = {
   logs: AdminAuditLog[];
 };
 
+export type AdminAuditLogFilters = {
+  limit?: number;
+  action?: string;
+  status?: string;
+  admin_username?: string;
+};
+
 export type AdminNotificationSnapshot = {
   total: number;
   unread: number;
@@ -363,5 +370,14 @@ export const runAdminStripeCheck = testAdminStripe;
 export const fetchAdminSmoke = () =>
   request("/admin/smoke") as Promise<AdminSmoke>;
 
-export const fetchAdminAuditLogs = () =>
-  request('/admin/audit-logs') as Promise<AdminAuditLogsResponse>;
+export const fetchAdminAuditLogs = (filters: AdminAuditLogFilters = {}) => {
+  const params = new URLSearchParams();
+
+  if (filters.limit) params.set('limit', String(filters.limit));
+  if (filters.action) params.set('action', filters.action);
+  if (filters.status) params.set('status', filters.status);
+  if (filters.admin_username) params.set('admin_username', filters.admin_username);
+
+  const query = params.toString();
+  return request(`/admin/audit-logs${query ? `?${query}` : ''}`) as Promise<AdminAuditLogsResponse>;
+};
