@@ -829,3 +829,19 @@ Pour restaurer :
 ```
 
 Le script de restauration crée un backup de sécurité avant restauration, sauf si `SKIP_PRE_RESTORE_BACKUP=1`.
+
+## Planification des backups
+
+Les scripts de backup peuvent être lancés manuellement ou planifiés via systemd.
+
+| Fichier | Rôle |
+| --- | --- |
+| `infra/systemd/trendscope-postgres-backup.timer` | Backup PostgreSQL quotidien |
+| `infra/systemd/trendscope-exports-backup.timer` | Backup exports quotidien |
+| `infra/systemd/trendscope-backup-verify.timer` | Vérification quotidienne des backups |
+
+Vérification manuelle :
+
+```bash
+./scripts/prod-backup-verify.sh
+```

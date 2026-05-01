@@ -293,3 +293,39 @@ Ne jamais stocker de secrets dans l’audit.
 8. Vérifier `/admin/system`.
 9. Vérifier `/admin/audit`.
 10. Vérifier les derniers rapports / exports.
+
+## Planification automatique des sauvegardes
+
+1. Déployer le projet dans `/opt/the-trend-scope`.
+2. Vérifier que `.env.production` est renseigné.
+3. Copier les unités systemd.
+4. Activer les timers.
+5. Vérifier les timers.
+6. Vérifier les logs.
+7. Tester une restauration sur environnement de préproduction.
+
+Commandes :
+
+```bash
+sudo cp infra/systemd/*.service /etc/systemd/system/
+sudo cp infra/systemd/*.timer /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now trendscope-postgres-backup.timer
+sudo systemctl enable --now trendscope-exports-backup.timer
+sudo systemctl enable --now trendscope-backup-verify.timer
+systemctl list-timers | grep trendscope
+```
+
+## Vérification des backups
+
+```bash
+./scripts/prod-backup-verify.sh
+```
+
+Le script vérifie :
+
+- la présence de backups PostgreSQL ;
+- l’intégrité gzip ;
+- les checksums SHA256 ;
+- la fraîcheur du dernier backup ;
+- la taille totale du dossier de backups.

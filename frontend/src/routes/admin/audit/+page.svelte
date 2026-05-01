@@ -14,8 +14,11 @@
   let error = '';
   let logs: AdminAuditLog[] = [];
 
-  const defaultFilters: AdminAuditLogFilters = { limit: 100, action: '', status: '', admin_username: '' };
+  const defaultFilters: AdminAuditLogFilters = { limit: 100, action: '', status: '', admin_username: '', since: '', until: '' };
   let filters: AdminAuditLogFilters = { ...defaultFilters };
+
+  const toIsoOrUndefined = (value?: string) =>
+    value ? new Date(value).toISOString() : undefined;
 
   const load = async () => {
     loading = true;
@@ -25,7 +28,9 @@
         limit: filters.limit || 100,
         action: filters.action?.trim() || undefined,
         status: filters.status?.trim() || undefined,
-        admin_username: filters.admin_username?.trim() || undefined
+        admin_username: filters.admin_username?.trim() || undefined,
+        since: toIsoOrUndefined(filters.since),
+        until: toIsoOrUndefined(filters.until)
       };
       const res = await fetchAdminAuditLogs(payload);
       logs = res.logs ?? [];
@@ -83,6 +88,8 @@
         <input type="text" placeholder="Status" bind:value={filters.status} />
         <input type="text" placeholder="Admin username" bind:value={filters.admin_username} />
         <input type="number" min="1" max="500" placeholder="Limit" bind:value={filters.limit} />
+        <input type="datetime-local" bind:value={filters.since} />
+        <input type="datetime-local" bind:value={filters.until} />
         <button type="submit" disabled={loading}>Apply filters</button>
         <button type="button" disabled={loading} on:click={resetFilters}>Reset</button>
       </form>

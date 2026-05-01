@@ -270,6 +270,8 @@ export type AdminAuditLogFilters = {
   action?: string;
   status?: string;
   admin_username?: string;
+  since?: string;
+  until?: string;
 };
 
 export type AdminNotificationSnapshot = {
@@ -377,6 +379,8 @@ export const fetchAdminAuditLogs = (filters: AdminAuditLogFilters = {}) => {
   if (filters.action) params.set('action', filters.action);
   if (filters.status) params.set('status', filters.status);
   if (filters.admin_username) params.set('admin_username', filters.admin_username);
+  if (filters.since) params.set('since', filters.since);
+  if (filters.until) params.set('until', filters.until);
 
   const query = params.toString();
   return request(`/admin/audit-logs${query ? `?${query}` : ''}`) as Promise<AdminAuditLogsResponse>;
