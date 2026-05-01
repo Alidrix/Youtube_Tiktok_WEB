@@ -52,6 +52,8 @@ pub struct AdminAuditLogFilters {
     pub action: Option<String>,
     pub status: Option<String>,
     pub admin_username: Option<String>,
+    pub since: Option<chrono::DateTime<chrono::Utc>>,
+    pub until: Option<chrono::DateTime<chrono::Utc>>,
 }
 
 pub async fn search(
@@ -65,13 +67,17 @@ pub async fn search(
         WHERE ($1::TEXT IS NULL OR action = $1)
           AND ($2::TEXT IS NULL OR status = $2)
           AND ($3::TEXT IS NULL OR admin_username = $3)
+          AND ($4::TIMESTAMPTZ IS NULL OR created_at >= $4)
+          AND ($5::TIMESTAMPTZ IS NULL OR created_at <= $5)
         ORDER BY created_at DESC
-        LIMIT $4
+        LIMIT $6
         "#,
     )
     .bind(filters.action.as_deref())
     .bind(filters.status.as_deref())
     .bind(filters.admin_username.as_deref())
+    .bind(filters.since)
+    .bind(filters.until)
     .bind(filters.limit.clamp(1, 500))
     .fetch_all(pool)
     .await

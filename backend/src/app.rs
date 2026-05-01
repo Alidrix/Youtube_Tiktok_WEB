@@ -195,21 +195,21 @@ pub fn build_router(state: AppState) -> Result<Router, AppError> {
             )
             .route(
                 "/api/v1/admin/system",
-                get(|auth: AuthBearer, state| async move { admin_system(auth, state).await }),
+                get(|auth: AuthBearer, state, headers| async move { admin_system(auth, state, headers).await }),
             )
             .route("/api/v1/admin/email-logs", get(|auth: AuthBearer, state| async move { admin_email_logs(auth, state).await }))
             .route("/api/v1/admin/notifications", get(|auth: AuthBearer, state| async move { admin_notifications(auth, state).await }))
-            .route("/api/v1/admin/exports", get(|auth: AuthBearer, state| async move { admin_exports(auth, state).await }))
-            .route("/api/v1/admin/test-telegram", post(|auth: AuthBearer, state, payload| async move { admin_test_telegram(auth, state, payload).await }))
-            .route("/api/v1/admin/test-smtp", post(|auth: AuthBearer, state, payload| async move { admin_test_smtp(auth, state, payload).await }))
-            .route("/api/v1/admin/test-youtube", post(|auth: AuthBearer, state| async move { admin_test_youtube(auth, state).await }))
-            .route("/api/v1/admin/test-stripe", post(|auth: AuthBearer, state| async move { admin_test_stripe(auth, state).await }))
-            .route("/api/v1/admin/go-live-checklist", get(|auth: AuthBearer, state| async move { admin_go_live_checklist(auth, state).await }))
-            .route("/api/v1/admin/smoke", get(|auth: AuthBearer, state| async move { admin_smoke(auth, state).await }))
-            .route("/api/v1/admin/audit-logs", get(|auth: AuthBearer, state, query| async move { admin_audit_logs(auth, state, query).await }))
+            .route("/api/v1/admin/exports", get(|auth: AuthBearer, state, headers| async move { admin_exports(auth, state, headers).await }))
+            .route("/api/v1/admin/test-telegram", post(|auth: AuthBearer, state, headers, payload| async move { admin_test_telegram(auth, state, headers, payload).await }))
+            .route("/api/v1/admin/test-smtp", post(|auth: AuthBearer, state, headers, payload| async move { admin_test_smtp(auth, state, headers, payload).await }))
+            .route("/api/v1/admin/test-youtube", post(|auth: AuthBearer, state, headers| async move { admin_test_youtube(auth, state, headers).await }))
+            .route("/api/v1/admin/test-stripe", post(|auth: AuthBearer, state, headers| async move { admin_test_stripe(auth, state, headers).await }))
+            .route("/api/v1/admin/go-live-checklist", get(|auth: AuthBearer, state, headers| async move { admin_go_live_checklist(auth, state, headers).await }))
+            .route("/api/v1/admin/smoke", get(|auth: AuthBearer, state, headers| async move { admin_smoke(auth, state, headers).await }))
+            .route("/api/v1/admin/audit-logs", get(|auth: AuthBearer, state, headers, query| async move { admin_audit_logs(auth, state, headers, query).await }))
             .route(
                 "/api/v1/admin/billing",
-                get(|auth: AuthBearer, state| async move { admin_billing(auth, state).await }),
+                get(|auth: AuthBearer, state, headers| async move { admin_billing(auth, state, headers).await }),
             )
             .layer(
                 CorsLayer::new()

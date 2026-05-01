@@ -11,3 +11,5 @@ infra/traefik/dynamic.yml
 backups/
 *.sql
 *.tar.gz
+*.sql.gz
+*.sha256

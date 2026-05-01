@@ -1,0 +1,7 @@
+[Unit]
+Description=The Trend Scope backup verification
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/the-trend-scope
+ExecStart=/opt/the-trend-scope/scripts/prod-backup-verify.sh

@@ -12,6 +12,7 @@ use crate::{
 };
 use axum::{
     extract::{Query, State},
+    http::{header, HeaderMap},
     Json,
 };
 use serde::Deserialize;
@@ -31,6 +32,12 @@ pub struct AuditLogsQuery {
     pub status: Option<String>,
     pub admin_username: Option<String>,
     pub since: Option<String>,
+    pub until: Option<String>,
+}
+#[derive(Debug, Clone, Default)]
+struct AdminAuditContext {
+    ip_address: Option<String>,
+    user_agent: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -48,6 +55,7 @@ async fn audit_admin_action(
     action: &str,
     target: Option<&str>,
     status: &str,
+    context: AdminAuditContext,
     metadata: Value,
 ) {
     if let Err(err) = admin_audit_logs::create(
@@ -57,8 +65,8 @@ async fn audit_admin_action(
             action,
             target,
             status,
-            ip_address: None,
-            user_agent: None,
+            ip_address: context.ip_address.as_deref(),
+            user_agent: context.user_agent.as_deref(),
             metadata,
         },
     )
@@ -66,6 +74,31 @@ async fn audit_admin_action(
     {
         tracing::warn!(?err, action, "failed to write admin audit log");
     }
+}
+
+fn audit_context_from_headers(headers: &HeaderMap) -> AdminAuditContext {
+    let user_agent = headers
+        .get(header::USER_AGENT)
+        .and_then(|value| value.to_str().ok())
+        .map(|value| value.chars().take(512).collect::<String>());
+    let ip_address = headers
+        .get("cf-connecting-ip")
+        .or_else(|| headers.get("x-real-ip"))
+        .or_else(|| headers.get("x-forwarded-for"))
+        .and_then(|value| value.to_str().ok())
+        .map(|value| value.split(',').next().unwrap_or(value).trim().to_string())
+        .filter(|value| !value.is_empty())
+        .map(|value| value.chars().take(128).collect::<String>());
+    AdminAuditContext {
+        ip_address,
+        user_agent,
+    }
+}
+
+fn parse_rfc3339_utc(value: Option<String>) -> Option<chrono::DateTime<chrono::Utc>> {
+    value
+        .and_then(|raw| chrono::DateTime::parse_from_rfc3339(&raw).ok())
+        .map(|dt| dt.with_timezone(&chrono::Utc))
 }
 
 pub async fn overview(
@@ -113,7 +146,9 @@ pub async fn jobs(
 pub async fn system(
     auth: AuthBearer,
     State(state): State<AppState>,
+    headers: HeaderMap,
 ) -> Result<Json<serde_json::Value>, AppError> {
+    let audit_context = audit_context_from_headers(&headers);
     ensure_admin(&state.pool, &auth.sub).await?;
     let pg = postgres_status(&state).await;
     let redis = redis_status(&state).await;
@@ -130,6 +165,7 @@ pub async fn system(
         "system",
         None,
         "ok",
+        audit_context,
         json!({"postgres": pg, "redis": redis, "nats": nats}),
     )
     .await;
@@ -141,7 +177,9 @@ pub async fn system(
 pub async fn billing(
     auth: AuthBearer,
     State(state): State<AppState>,
+    headers: HeaderMap,
 ) -> Result<Json<serde_json::Value>, AppError> {
+    let audit_context = audit_context_from_headers(&headers);
     ensure_admin(&state.pool, &auth.sub).await?;
     let mut snap = subscriptions::admin_billing_snapshot(&state.pool).await?;
     snap["stripe"] = stripe_flags();
@@ -151,6 +189,7 @@ pub async fn billing(
         "billing",
         None,
         "ok",
+        audit_context,
         json!({"stripe": snap["stripe"]}),
     )
     .await;
@@ -160,7 +199,9 @@ pub async fn billing(
 pub async fn go_live_checklist(
     auth: AuthBearer,
     State(state): State<AppState>,
+    headers: HeaderMap,
 ) -> Result<Json<serde_json::Value>, AppError> {
+    let audit_context = audit_context_from_headers(&headers);
     ensure_admin(&state.pool, &auth.sub).await?;
     audit_admin_action(
         &state,
@@ -168,6 +209,7 @@ pub async fn go_live_checklist(
         "go_live_checklist",
         None,
         "ok",
+        audit_context,
         json!({}),
     )
     .await;
@@ -177,19 +219,30 @@ pub async fn go_live_checklist(
 pub async fn audit_logs(
     auth: AuthBearer,
     State(state): State<AppState>,
+    headers: HeaderMap,
     Query(q): Query<AuditLogsQuery>,
 ) -> Result<Json<serde_json::Value>, AppError> {
+    let audit_context = audit_context_from_headers(&headers);
     ensure_admin(&state.pool, &auth.sub).await?;
-    if q.since.is_some() {
-        tracing::debug!("audit_logs: `since` filter is not implemented yet");
-    }
     let filters = admin_audit_logs::AdminAuditLogFilters {
         limit: q.limit.unwrap_or(100),
         action: q.action,
         status: q.status,
         admin_username: q.admin_username,
+        since: parse_rfc3339_utc(q.since),
+        until: parse_rfc3339_utc(q.until),
     };
     let logs = admin_audit_logs::search(&state.pool, &filters).await?;
+    audit_admin_action(
+        &state,
+        &auth.sub,
+        "audit_logs",
+        None,
+        "ok",
+        audit_context,
+        json!({"count": logs.len()}),
+    )
+    .await;
     Ok(Json(json!({ "logs": logs })))
 }
 
@@ -323,8 +376,10 @@ pub async fn notifications_snapshot(
 pub async fn exports_list(
     auth: AuthBearer,
     State(state): State<AppState>,
+    headers: HeaderMap,
 ) -> Result<Json<serde_json::Value>, AppError> {
     ensure_admin(&state.pool, &auth.sub).await?;
+    let audit_context = audit_context_from_headers(&headers);
     let exports = reports::latest_exports(&state.pool).await?.into_iter().map(|r| json!({"id":r.id,"title":r.title,"format":r.format,"file_url":r.file_url,"created_at":r.created_at})).collect::<Vec<_>>();
     audit_admin_action(
         &state,
@@ -332,6 +387,7 @@ pub async fn exports_list(
         "exports_list",
         None,
         "ok",
+        audit_context,
         json!({"count": exports.len()}),
     )
     .await;
@@ -341,11 +397,13 @@ pub async fn exports_list(
 pub async fn test_telegram(
     auth: AuthBearer,
     State(state): State<AppState>,
+    headers: HeaderMap,
     Json(payload): Json<TestTelegramPayload>,
 ) -> Result<Json<serde_json::Value>, AppError> {
     ensure_admin(&state.pool, &auth.sub).await?;
+    let audit_context = audit_context_from_headers(&headers);
     if !state.config.telegram.is_configured() {
-        audit_admin_action(&state, &auth.sub, "test_telegram", None, "failed", json!({"chat_id_provided": payload.chat_id.is_some(),"configured": state.config.telegram.is_configured()})).await;
+        audit_admin_action(&state, &auth.sub, "test_telegram", None, "failed", audit_context.clone(), json!({"chat_id_provided": payload.chat_id.is_some(),"configured": state.config.telegram.is_configured()})).await;
         return Ok(Json(json!({"sent":false,"reason":"not_configured"})));
     };
     let chat_id = payload.chat_id.or_else(|| {
@@ -362,6 +420,7 @@ pub async fn test_telegram(
             "test_telegram",
             None,
             "failed",
+            audit_context.clone(),
             json!({"chat_id_provided": false,"configured": true}),
         )
         .await;
@@ -387,6 +446,7 @@ pub async fn test_telegram(
         "test_telegram",
         None,
         "sent",
+        audit_context.clone(),
         json!({"chat_id_provided": true,"configured": true}),
     )
     .await;
@@ -396,9 +456,11 @@ pub async fn test_telegram(
 pub async fn test_smtp(
     auth: AuthBearer,
     State(state): State<AppState>,
+    headers: HeaderMap,
     Json(payload): Json<TestSmtpPayload>,
 ) -> Result<Json<serde_json::Value>, AppError> {
     ensure_admin(&state.pool, &auth.sub).await?;
+    let audit_context = audit_context_from_headers(&headers);
     if !state.config.smtp.is_configured() {
         audit_admin_action(
             &state,
@@ -406,6 +468,7 @@ pub async fn test_smtp(
             "test_smtp",
             Some(&payload.to),
             "failed",
+            audit_context.clone(),
             json!({"configured": false}),
         )
         .await;
@@ -426,6 +489,7 @@ pub async fn test_smtp(
         "test_smtp",
         Some(&payload.to),
         "sent",
+        audit_context.clone(),
         json!({"configured": true}),
     )
     .await;
@@ -435,8 +499,10 @@ pub async fn test_smtp(
 pub async fn test_youtube(
     auth: AuthBearer,
     State(state): State<AppState>,
+    headers: HeaderMap,
 ) -> Result<Json<serde_json::Value>, AppError> {
     ensure_admin(&state.pool, &auth.sub).await?;
+    let audit_context = audit_context_from_headers(&headers);
     if state.config.youtube.api_key.is_empty() {
         audit_admin_action(
             &state,
@@ -444,6 +510,7 @@ pub async fn test_youtube(
             "test_youtube",
             None,
             "failed",
+            audit_context.clone(),
             json!({"configured": false}),
         )
         .await;
@@ -459,6 +526,7 @@ pub async fn test_youtube(
                 "test_youtube",
                 None,
                 "ok",
+                audit_context.clone(),
                 json!({"configured": true}),
             )
             .await;
@@ -473,6 +541,7 @@ pub async fn test_youtube(
                 "test_youtube",
                 None,
                 "failed",
+                audit_context.clone(),
                 json!({"configured": true}),
             )
             .await;
@@ -486,14 +555,16 @@ pub async fn test_youtube(
 pub async fn test_stripe(
     auth: AuthBearer,
     State(state): State<AppState>,
+    headers: HeaderMap,
 ) -> Result<Json<serde_json::Value>, AppError> {
     ensure_admin(&state.pool, &auth.sub).await?;
+    let audit_context = audit_context_from_headers(&headers);
     let configured = json!({"secret_key":!std::env::var("STRIPE_SECRET_KEY").unwrap_or_default().is_empty(),"webhook_secret":!std::env::var("STRIPE_WEBHOOK_SECRET").unwrap_or_default().is_empty(),"pro_price":!std::env::var("STRIPE_PRICE_PRO_MONTHLY").unwrap_or_default().is_empty(),"studio_price":!std::env::var("STRIPE_PRICE_STUDIO_MONTHLY").unwrap_or_default().is_empty()});
     let ok = configured["secret_key"].as_bool() == Some(true)
         && configured["webhook_secret"].as_bool() == Some(true)
         && configured["pro_price"].as_bool() == Some(true)
         && configured["studio_price"].as_bool() == Some(true);
-    audit_admin_action(&state, &auth.sub, "test_stripe", None, if ok {"ok"} else {"failed"}, json!({"secret_key_configured": configured["secret_key"],"webhook_configured": configured["webhook_secret"],"pro_price_configured": configured["pro_price"],"studio_price_configured": configured["studio_price"]})).await;
+    audit_admin_action(&state, &auth.sub, "test_stripe", None, if ok {"ok"} else {"failed"}, audit_context.clone(), json!({"secret_key_configured": configured["secret_key"],"webhook_configured": configured["webhook_secret"],"pro_price_configured": configured["pro_price"],"studio_price_configured": configured["studio_price"]})).await;
     if ok {
         Ok(Json(json!({"ok":true,"configured":configured})))
     } else {
@@ -506,8 +577,10 @@ pub async fn test_stripe(
 pub async fn smoke(
     auth: AuthBearer,
     State(state): State<AppState>,
+    headers: HeaderMap,
 ) -> Result<Json<serde_json::Value>, AppError> {
     ensure_admin(&state.pool, &auth.sub).await?;
+    let audit_context = audit_context_from_headers(&headers);
     let checks = json!({"postgres": postgres_status(&state).await,"redis": redis_status(&state).await,"nats": nats_status(&state),"metrics": metrics_status(&state).await,"youtube_config": if state.config.youtube.api_key.is_empty() { "not_configured" } else { "configured" },"stripe_config": if stripe::config_from_env().is_some() { "configured" } else { "not_configured" },"smtp_config": if state.config.smtp.is_configured() { "configured" } else { "not_configured" },"telegram_config": if state.config.telegram.is_configured() { "configured" } else { "not_configured" },"storage": local_storage_status(&state).await});
     let blocking = smoke_blocking_map();
     let ok = smoke_is_ok(&checks);
@@ -534,6 +607,7 @@ pub async fn smoke(
         "smoke",
         None,
         if ok { "ok" } else { "failed" },
+        audit_context,
         json!({"ok": ok, "blocking_failed": blocking_failed}),
     )
     .await;
