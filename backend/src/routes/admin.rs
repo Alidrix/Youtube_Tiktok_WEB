@@ -588,6 +588,124 @@ fn stripe_flags() -> serde_json::Value {
     json!({"configured": stripe::config_from_env().is_some(),"webhook_configured": !std::env::var("STRIPE_WEBHOOK_SECRET").unwrap_or_default().is_empty(),"price_pro_configured": !std::env::var("STRIPE_PRICE_PRO_MONTHLY").unwrap_or_default().is_empty(),"price_studio_configured": !std::env::var("STRIPE_PRICE_STUDIO_MONTHLY").unwrap_or_default().is_empty()})
 }
 
+async fn monitoring_service_status(state: &AppState, base_url: &str, path: &str) -> &'static str {
+    if base_url.trim().is_empty() {
+        return "not_configured";
+    }
+    let url = format!("{}{}", base_url.trim_end_matches('/'), path);
+    match state.http.get(url).send().await {
+        Ok(response) if response.status().is_success() => "ok",
+        Ok(_) | Err(_) => "error",
+    }
+}
+
+pub async fn monitoring_status(
+    auth: AuthBearer,
+    State(state): State<AppState>,
+    headers: HeaderMap,
+) -> Result<Json<serde_json::Value>, AppError> {
+    ensure_admin(&state.pool, &auth.sub).await?;
+    let audit_context = audit_context_from_headers(&headers);
+
+    let endpoints = json!({
+        "prometheus": std::env::var("PROMETHEUS_URL").unwrap_or_else(|_| "http://prometheus:9090".into()),
+        "grafana": std::env::var("GRAFANA_URL").unwrap_or_else(|_| "http://grafana:3000".into()),
+        "loki": std::env::var("LOKI_URL").unwrap_or_else(|_| "http://loki:3100".into()),
+        "alertmanager": std::env::var("ALERTMANAGER_URL").unwrap_or_else(|_| "http://alertmanager:9093".into()),
+        "blackbox": std::env::var("BLACKBOX_URL").unwrap_or_else(|_| "http://blackbox:9115".into()),
+        "node_exporter": std::env::var("NODE_EXPORTER_URL").unwrap_or_else(|_| "http://node-exporter:9100".into()),
+        "cadvisor": std::env::var("CADVISOR_URL").unwrap_or_else(|_| "http://cadvisor:8080".into())
+    });
+
+    let prometheus = monitoring_service_status(
+        &state,
+        endpoints["prometheus"].as_str().unwrap_or_default(),
+        "/-/ready",
+    )
+    .await;
+    let grafana = monitoring_service_status(
+        &state,
+        endpoints["grafana"].as_str().unwrap_or_default(),
+        "/api/health",
+    )
+    .await;
+    let loki = monitoring_service_status(
+        &state,
+        endpoints["loki"].as_str().unwrap_or_default(),
+        "/ready",
+    )
+    .await;
+    let alertmanager = monitoring_service_status(
+        &state,
+        endpoints["alertmanager"].as_str().unwrap_or_default(),
+        "/-/ready",
+    )
+    .await;
+    let blackbox = monitoring_service_status(
+        &state,
+        endpoints["blackbox"].as_str().unwrap_or_default(),
+        "/-/healthy",
+    )
+    .await;
+    let node_exporter = monitoring_service_status(
+        &state,
+        endpoints["node_exporter"].as_str().unwrap_or_default(),
+        "/metrics",
+    )
+    .await;
+    let cadvisor = monitoring_service_status(
+        &state,
+        endpoints["cadvisor"].as_str().unwrap_or_default(),
+        "/metrics",
+    )
+    .await;
+
+    let services = json!({
+        "prometheus": prometheus,
+        "grafana": grafana,
+        "loki": loki,
+        "alertmanager": alertmanager,
+        "blackbox": blackbox,
+        "node_exporter": node_exporter,
+        "cadvisor": cadvisor
+    });
+
+    let statuses = [
+        prometheus,
+        grafana,
+        loki,
+        alertmanager,
+        blackbox,
+        node_exporter,
+        cadvisor,
+    ];
+    let status = if statuses.contains(&"error") {
+        "error"
+    } else if statuses.contains(&"not_configured") {
+        "warning"
+    } else {
+        "ok"
+    };
+
+    audit_admin_action(
+        &state,
+        &auth.sub,
+        "monitoring_status",
+        None,
+        status,
+        audit_context,
+        services.clone(),
+    )
+    .await;
+
+    Ok(Json(json!({
+        "status": status,
+        "services": services,
+        "endpoints": endpoints,
+        "strict_hint": "REQUIRE_MONITORING_RUNNING=1 ./scripts/prod-monitoring-check.sh"
+    })))
+}
+
 pub async fn email_logs_list(
     auth: AuthBearer,
     State(state): State<AppState>,

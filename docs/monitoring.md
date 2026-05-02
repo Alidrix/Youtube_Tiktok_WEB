@@ -85,3 +85,33 @@ Lister les métriques exposées par `/metrics` :
 - `trend_scope_email_logs_sent_total`
 - `trend_scope_email_logs_failed_total`
 - `trend_scope_email_logs_skipped_total`
+
+
+## Exporters infrastructure
+
+| Service | Rôle |
+| --- | --- |
+| Node Exporter | Métriques hôte CPU/RAM/disque |
+| cAdvisor | Métriques containers Docker |
+| Blackbox Exporter | Probes HTTP internes |
+
+## Démarrage complet
+
+```bash
+docker compose --env-file .env.production \
+  -f docker-compose.prod.yml \
+  -f docker-compose.monitoring.yml \
+  up -d prometheus alertmanager grafana loki promtail node-exporter cadvisor blackbox
+```
+
+Vérification stricte
+
+```bash
+REQUIRE_MONITORING_RUNNING=1 ./scripts/prod-monitoring-check.sh
+```
+
+Page admin monitoring
+
+`/admin/monitoring`
+
+Cette page est read-only et permet de vérifier l’état Prometheus, Grafana, Loki, Alertmanager, Blackbox, Node Exporter et cAdvisor.

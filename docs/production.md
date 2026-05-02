@@ -436,3 +436,10 @@ Ce test restaure le dump dans un conteneur PostgreSQL temporaire et ne touche ja
 2. Vérifier les logs worker.
 3. Vérifier PostgreSQL / exports.
 4. Relancer un rapport de test.
+
+
+## Runbook préproduction monitoring
+
+1. Ouvrir `/admin/monitoring`.
+2. Vérifier que Prometheus, Grafana, Loki, Alertmanager, Blackbox, Node Exporter et cAdvisor sont `ok`.
+3. Lancer `REQUIRE_MONITORING_RUNNING=1 ./scripts/prod-monitoring-check.sh`.
