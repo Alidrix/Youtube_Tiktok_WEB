@@ -898,3 +898,9 @@ Vérification :
 ```bash
 ./scripts/prod-monitoring-check.sh
 ```
+
+Premier VPS sans monitoring démarré :
+
+```bash
+SKIP_MONITORING_CHECK=1 ./scripts/prod-go-no-go.sh
+```
