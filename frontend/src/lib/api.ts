@@ -250,6 +250,14 @@ export type AdminExport = {
 };
 
 
+
+export type AdminMonitoringStatus = {
+  status: string;
+  services: Record<string, string>;
+  endpoints: Record<string, string>;
+  strict_hint: string;
+};
+
 export type AdminIncidentsStatus = {
   status: string;
   checks: Record<string, string>;
@@ -425,3 +433,6 @@ export const fetchAdminAuditLogs = (filters: AdminAuditLogFilters = {}) => {
 
 export const fetchAdminIncidentsStatus = () =>
   request("/admin/incidents/status") as Promise<AdminIncidentsStatus>;
+
+export const fetchAdminMonitoringStatus = () =>
+  request('/admin/monitoring/status') as Promise<AdminMonitoringStatus>;

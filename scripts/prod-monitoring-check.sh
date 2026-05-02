@@ -1,34 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
-
 REQUIRE_MONITORING_RUNNING="${REQUIRE_MONITORING_RUNNING:-0}"
-
-fail() {
-  echo "❌ $1"
-  exit 1
-}
-
-info() {
-  echo "ℹ️  $1"
-}
-
-success() {
-  echo "✅ $1"
-}
-
-require_file() {
-  local path="$1"
-  [ -f "$path" ] || fail "Missing required file: $path"
-}
-
-compose() {
-  docker compose --env-file .env.production \
-    -f docker-compose.prod.yml \
-    -f docker-compose.monitoring.yml \
-    "$@"
-}
-
-check_config() {
+fail(){ echo "❌ $1"; exit 1; }
+info(){ echo "ℹ️  $1"; }
+success(){ echo "✅ $1"; }
+require_file(){ [ -f "$1" ] || fail "Missing required file: $1"; }
+compose(){ docker compose --env-file .env.production -f docker-compose.prod.yml -f docker-compose.monitoring.yml "$@"; }
+curl_container(){ local container="$1"; local url="$2"; docker run --rm --network "container:${container}" curlimages/curl:8.10.1 -fsS "$url" >/dev/null; }
+check_config(){
   info "Checking required monitoring files"
   require_file .env.production
   require_file docker-compose.monitoring.yml
@@ -38,32 +17,24 @@ check_config() {
   require_file infra/grafana/provisioning/datasources/datasources.yml
   require_file infra/grafana/provisioning/dashboards/dashboards.yml
   require_file infra/grafana/dashboards/trend-scope-overview.json
+  require_file infra/grafana/dashboards/trend-scope-infra.json
   require_file infra/promtail/promtail.yml
-
-  info "Validating compose monitoring config"
+  require_file infra/blackbox/blackbox.yml
   compose config >/dev/null
   success "Monitoring configuration is valid"
 }
-
-check_running_services() {
+check_running_services(){
   info "REQUIRE_MONITORING_RUNNING=1, checking running monitoring services"
-
-  compose ps prometheus alertmanager grafana loki promtail >/dev/null
-
-  compose exec -T prometheus sh -c 'wget -qO- http://localhost:9090/-/ready >/dev/null'
-  compose exec -T grafana sh -c 'wget -qO- http://localhost:3000/api/health >/dev/null'
-  compose exec -T loki sh -c 'wget -qO- http://localhost:3100/ready >/dev/null'
-  compose exec -T alertmanager sh -c 'wget -qO- http://localhost:9093/-/ready >/dev/null'
-
+  compose ps prometheus alertmanager grafana loki promtail node-exporter cadvisor blackbox >/dev/null
+  curl_container trend-scope-prometheus http://localhost:9090/-/ready
+  curl_container trend-scope-grafana http://localhost:3000/api/health
+  curl_container trend-scope-loki http://localhost:3100/ready
+  curl_container trend-scope-alertmanager http://localhost:9093/-/ready
+  curl_container trend-scope-blackbox http://localhost:9115/-/healthy
+  curl_container trend-scope-node-exporter http://localhost:9100/metrics
+  curl_container trend-scope-cadvisor http://localhost:8080/metrics
   success "Monitoring services readiness checks passed"
 }
-
 check_config
-
-if [ "$REQUIRE_MONITORING_RUNNING" = "1" ]; then
-  check_running_services
-else
-  info "REQUIRE_MONITORING_RUNNING=0, skipping runtime readiness checks"
-fi
-
+if [ "$REQUIRE_MONITORING_RUNNING" = "1" ]; then check_running_services; else info "REQUIRE_MONITORING_RUNNING=0, skipping runtime readiness checks"; fi
 success "Monitoring checks completed"

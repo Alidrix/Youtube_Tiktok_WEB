@@ -54,3 +54,40 @@ groups:
         annotations:
           summary: "Alert delivery failures detected"
           description: "At least one alert delivery failed."
+
+
+      - alert: TrendScopeHttpProbeFailed
+        expr: probe_success{job="blackbox-http"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "HTTP probe failed"
+          description: "Blackbox probe failed for {{ $labels.instance }}."
+
+      - alert: TrendScopeHostDiskLow
+        expr: (node_filesystem_avail_bytes{fstype!~"tmpfs|overlay"} / node_filesystem_size_bytes{fstype!~"tmpfs|overlay"}) < 0.10
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Host disk space is low"
+          description: "Disk space is below 10% on {{ $labels.mountpoint }}."
+
+      - alert: TrendScopeHostMemoryLow
+        expr: (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) < 0.10
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Host memory is low"
+          description: "Available memory is below 10%."
+
+      - alert: TrendScopeContainerCpuHigh
+        expr: sum(rate(container_cpu_usage_seconds_total{name!=""}[5m])) by (name) > 0.8
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Container CPU usage high"
+          description: "Container {{ $labels.name }} CPU usage is high."

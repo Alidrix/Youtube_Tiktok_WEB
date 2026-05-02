@@ -75,6 +75,48 @@ services:
     networks:
       - trend-scope-private
 
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: trend-scope-node-exporter
+    restart: unless-stopped
+    command:
+      - "--path.rootfs=/host"
+    volumes:
+      - /:/host:ro,rslave
+    networks:
+      - trend-scope-private
+    expose:
+      - "9100"
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:latest
+    container_name: trend-scope-cadvisor
+    restart: unless-stopped
+    privileged: true
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    networks:
+      - trend-scope-private
+    expose:
+      - "8080"
+
+  blackbox:
+    image: prom/blackbox-exporter:latest
+    container_name: trend-scope-blackbox
+    restart: unless-stopped
+    volumes:
+      - ./infra/blackbox/blackbox.yml:/etc/blackbox_exporter/config.yml:ro
+    command:
+      - "--config.file=/etc/blackbox_exporter/config.yml"
+    networks:
+      - trend-scope-private
+    expose:
+      - "9115"
+
 volumes:
   prometheus_data:
   grafana_data:

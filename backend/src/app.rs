@@ -15,6 +15,7 @@ use crate::{
             billing as admin_billing, email_logs_list as admin_email_logs,
             exports_list as admin_exports, go_live_checklist as admin_go_live_checklist,
             incidents_status as admin_incidents_status, jobs as admin_jobs,
+            monitoring_status as admin_monitoring_status,
             notifications_snapshot as admin_notifications, overview as admin_overview,
             smoke as admin_smoke, sources as admin_sources, system as admin_system,
             test_smtp as admin_test_smtp, test_stripe as admin_test_stripe,
@@ -203,6 +204,7 @@ pub fn build_router(state: AppState) -> Result<Router, AppError> {
             .route("/api/v1/admin/exports", get(|auth: AuthBearer, state, headers| async move { admin_exports(auth, state, headers).await }))
             .route("/api/v1/admin/backups/status", get(|auth: AuthBearer, state, headers| async move { admin_backups_status(auth, state, headers).await }))
             .route("/api/v1/admin/incidents/status", get(|auth: AuthBearer, state, headers| async move { admin_incidents_status(auth, state, headers).await }))
+            .route("/api/v1/admin/monitoring/status", get(|auth: AuthBearer, state, headers| async move { admin_monitoring_status(auth, state, headers).await }))
             .route("/api/v1/admin/test-telegram", post(|auth: AuthBearer, state, headers, payload| async move { admin_test_telegram(auth, state, headers, payload).await }))
             .route("/api/v1/admin/test-smtp", post(|auth: AuthBearer, state, headers, payload| async move { admin_test_smtp(auth, state, headers, payload).await }))
             .route("/api/v1/admin/test-youtube", post(|auth: AuthBearer, state, headers| async move { admin_test_youtube(auth, state, headers).await }))

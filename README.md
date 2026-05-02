@@ -907,3 +907,10 @@ Premier VPS sans monitoring démarré :
 ```bash
 SKIP_MONITORING_CHECK=1 ./scripts/prod-go-no-go.sh
 ```
+
+
+## Monitoring
+
+Page admin read-only : `/admin/monitoring`
+
+Guide complet : `docs/monitoring.md`
