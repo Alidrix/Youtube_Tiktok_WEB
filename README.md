@@ -932,3 +932,16 @@ SKIP_MONITORING_CHECK=1 ./scripts/prod-go-no-go.sh
 Page admin read-only : `/admin/monitoring`
 
 Guide complet : `docs/monitoring.md`
+
+## UI V2
+
+The frontend remains SvelteKit/Svelte native.
+
+The UI V2 introduces:
+- shared design tokens in `frontend/src/lib/styles/tokens.css`;
+- reusable Svelte UI components in `frontend/src/lib/components/ui`;
+- premium admin and dashboard layouts;
+- lightweight CSS/Svelte animations;
+- responsive and accessible UI improvements.
+
+21st.dev was used only as visual inspiration. No React component, JSX/TSX, framer-motion, or API key is committed.
