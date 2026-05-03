@@ -1,32 +1,3 @@
-<script lang="ts">
-  import { currentUser } from '$lib/stores/user';
-
-  $: isAdmin = $currentUser?.role === 'admin';
-  const links = [
-    ['Radar', '/radar'],
-    ['Favoris', '/favorites'],
-    ['Watchlist', '/watchlist'],
-    ['Alertes', '/alerts'],
-    ['Notifications', '/notifications'],
-    ['Rapports', '/reports'],
-    ['Abonnement', '/subscription'],
-    ['Paramètres', '/settings']
-  ];
-</script>
-
-<aside>
-  {#each links as link}
-    <a href={link[1]}>{link[0]}</a>
-  {/each}
-  {#if isAdmin}
-    {#each [['Admin Overview','/admin'],['Admin Ops','/admin/ops'],['Admin System','/admin/system'],['Admin Billing','/admin/billing'],['Admin Backups','/admin/backups'],['Admin Incidents','/admin/incidents'],['Admin Monitoring','/admin/monitoring'],['Go-live Checklist','/admin/go-live'],['Admin Audit','/admin/audit']] as link}
-      <a href={link[1]}>{link[0]}</a>
-    {/each}
-  {/if}
-</aside>
-
-<style>
-  aside { width:220px; display:flex; flex-direction:column; gap:.35rem; padding:1rem; border-right:1px solid var(--border); background:var(--surface); }
-  a { padding:.55rem .7rem; border-radius:10px; color:var(--text); }
-  a:hover { background:var(--surface-soft); }
-</style>
+<script lang='ts'>import { currentUser } from '$lib/stores/user'; $: isAdmin=$currentUser?.role==='admin'; const links=[['Radar','/radar'],['Favoris','/favorites'],['Watchlist','/watchlist'],['Alertes','/alerts'],['Notifications','/notifications'],['Rapports','/reports'],['Abonnement','/subscription'],['Paramètres','/settings']];</script>
+<aside><h3>Navigation</h3>{#each links as link}<a href={link[1]}>{link[0]}</a>{/each}{#if isAdmin}<h4>Admin</h4>{#each [['Admin Overview','/admin'],['Admin Ops','/admin/ops'],['Admin System','/admin/system'],['Admin Billing','/admin/billing'],['Admin Backups','/admin/backups'],['Admin Incidents','/admin/incidents'],['Admin Monitoring','/admin/monitoring'],['Go-live Checklist','/admin/go-live'],['Admin Audit','/admin/audit']] as link}<a href={link[1]}>{link[0]}</a>{/each}{/if}</aside>
+<style>aside{width:240px;display:flex;flex-direction:column;gap:.35rem;padding:1rem;border-right:1px solid var(--border);background:var(--surface-glass);backdrop-filter:blur(8px)}h3,h4{margin:.4rem 0;color:var(--muted);font-size:.8rem;text-transform:uppercase;letter-spacing:.06em}a{padding:.6rem .75rem;border-radius:10px;color:var(--text);transition:all var(--transition-fast)}a:hover{background:var(--surface-soft);transform:translateX(2px)}@media(max-width:900px){aside{width:100%;border-right:none;border-bottom:1px solid var(--border);display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}h3,h4{grid-column:1/-1}}</style>

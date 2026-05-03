@@ -3,6 +3,9 @@
 
   import { fetchAdminMonitoringStatus, type AdminMonitoringStatus } from '$lib/api';
   import AdminSection from '$lib/components/AdminSection.svelte';
+  import CommandBlock from '$lib/components/ui/CommandBlock.svelte';
+  import EmptyState from '$lib/components/ui/EmptyState.svelte';
+  import SkeletonBlock from '$lib/components/ui/SkeletonBlock.svelte';
   import AdminStatCard from '$lib/components/AdminStatCard.svelte';
   import AdminStatusList from '$lib/components/AdminStatusList.svelte';
   import AdminToolbar from '$lib/components/AdminToolbar.svelte';
@@ -61,6 +64,8 @@
     <p>Accès restreint</p>
   {:else}
     <PageHeader title="Admin monitoring" subtitle="Observabilité runtime read-only" />
+    {#if loading}<SkeletonBlock lines={4} />{/if}
+    {#if !loading && error}<EmptyState title="Monitoring indisponible" message={error} tone="error" />{/if}
     <p class="helper-note">Cette page vérifie uniquement l’état runtime de la stack monitoring. Les commandes restent à exécuter manuellement sur le VPS.</p>
 
     <AdminToolbar {loading} {error}>
@@ -100,11 +105,9 @@
 
     
     <AdminSection title="Go/No-Go monitoring">
-      <div class="command-list">
-        <code>./scripts/prod-monitoring-check.sh</code>
-        <code>REQUIRE_MONITORING_RUNNING=1 ./scripts/prod-monitoring-check.sh</code>
-        <code>SKIP_ALERTING_TEST=0 REQUIRE_MONITORING_RUNNING=1 ./scripts/prod-go-no-go.sh</code>
-      </div>
+      <CommandBlock command="./scripts/prod-monitoring-check.sh" />
+      <CommandBlock command="REQUIRE_MONITORING_RUNNING=1 ./scripts/prod-monitoring-check.sh" />
+      <CommandBlock command="SKIP_ALERTING_TEST=0 REQUIRE_MONITORING_RUNNING=1 ./scripts/prod-go-no-go.sh" />
     </AdminSection>
 
     <AdminSection title="Mode strict">
@@ -116,22 +119,18 @@
           status={data?.services?.alertmanager ?? 'warning'}
         />
       </div>
-      <div class="command-list">
-        <code>{strictModeCommand}</code>
-      </div>
+      <CommandBlock command={strictModeCommand} />
     </AdminSection>
 
     <AdminSection title="Alerting test">
-      <div class="command-list">
-        <code>./scripts/prod-alerting-test.sh</code>
-        <code>REQUIRE_MONITORING_RUNNING=1 ./scripts/prod-alerting-test.sh</code>
-      </div>
+      <CommandBlock command="./scripts/prod-alerting-test.sh" />
+      <CommandBlock command="REQUIRE_MONITORING_RUNNING=1 ./scripts/prod-alerting-test.sh" />
     </AdminSection>
 
     <AdminSection title="Documentation">
-      <p><code>docs/monitoring.md</code></p>
-      <p><code>docker compose --env-file .env.production -f docker-compose.prod.yml -f docker-compose.monitoring.yml ps</code></p>
-      <p><code>SKIP_MONITORING_CHECK=1 ./scripts/prod-go-no-go.sh</code></p>
+      <CommandBlock command="docker compose --env-file .env.production -f docker-compose.prod.yml -f docker-compose.monitoring.yml ps" />
+      <CommandBlock command="docs/monitoring.md" copyable={false} />
+      <CommandBlock command="SKIP_MONITORING_CHECK=1 ./scripts/prod-go-no-go.sh" />
     </AdminSection>
   {/if}
 </AppShell>
@@ -151,16 +150,4 @@
     gap: 0.75rem;
   }
 
-  .command-list {
-    display: grid;
-    gap: 0.5rem;
-  }
-
-  .command-list code {
-    display: block;
-    padding: 0.65rem 0.75rem;
-    border-radius: 0.75rem;
-    background: rgba(148, 163, 184, 0.12);
-    overflow-x: auto;
-  }
 </style>
