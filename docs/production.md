@@ -148,6 +148,26 @@ La CI couvre :
 5. Docker Compose production config.
 6. Guards produit : alertes, admin, go-live, absence de workflow de diagnostic historique.
 
+
+### Validation monitoring Compose
+
+Avant VPS, la CI valide aussi la combinaison :
+
+```bash
+docker compose --env-file .env.production \
+  -f docker-compose.prod.yml \
+  -f docker-compose.monitoring.yml \
+  config
+```
+
+### Test alerting optionnel
+
+```bash
+SKIP_ALERTING_TEST=0 REQUIRE_MONITORING_RUNNING=1 ./scripts/prod-go-no-go.sh
+```
+
+Par défaut, le Go/No-Go ne déclenche pas d’alerte manuelle. Le POST vers Alertmanager ne part que si `SKIP_ALERTING_TEST=0`, sans secret externe.
+
 ## Go-live : tests d’exploitation
 1. Vérifier `CI`.
 2. Déployer et configurer `.env.production`.

@@ -61,6 +61,7 @@
     <p>Accès restreint</p>
   {:else}
     <PageHeader title="Admin monitoring" subtitle="Observabilité runtime read-only" />
+    <p class="helper-note">Cette page vérifie uniquement l’état runtime de la stack monitoring. Les commandes restent à exécuter manuellement sur le VPS.</p>
 
     <AdminToolbar {loading} {error}>
       <button type="button" on:click={load} disabled={loading}>Refresh</button>
@@ -97,10 +98,13 @@
       <DataTable {columns} rows={endpointRows()} />
     </AdminSection>
 
-    <AdminSection title="Commandes opérateur">
-      <ul>
-        <li><code>./scripts/prod-monitoring-check.sh</code></li>
-      </ul>
+    
+    <AdminSection title="Go/No-Go monitoring">
+      <div class="command-list">
+        <code>./scripts/prod-monitoring-check.sh</code>
+        <code>REQUIRE_MONITORING_RUNNING=1 ./scripts/prod-monitoring-check.sh</code>
+        <code>SKIP_ALERTING_TEST=0 REQUIRE_MONITORING_RUNNING=1 ./scripts/prod-go-no-go.sh</code>
+      </div>
     </AdminSection>
 
     <AdminSection title="Mode strict">
@@ -112,16 +116,16 @@
           status={data?.services?.alertmanager ?? 'warning'}
         />
       </div>
-      <ul>
-        <li><code>{strictModeCommand}</code></li>
-      </ul>
+      <div class="command-list">
+        <code>{strictModeCommand}</code>
+      </div>
     </AdminSection>
 
     <AdminSection title="Alerting test">
-      <ul>
-        <li><code>./scripts/prod-alerting-test.sh</code></li>
-        <li><code>REQUIRE_MONITORING_RUNNING=1 ./scripts/prod-alerting-test.sh</code></li>
-      </ul>
+      <div class="command-list">
+        <code>./scripts/prod-alerting-test.sh</code>
+        <code>REQUIRE_MONITORING_RUNNING=1 ./scripts/prod-alerting-test.sh</code>
+      </div>
     </AdminSection>
 
     <AdminSection title="Documentation">
@@ -132,11 +136,31 @@
   {/if}
 </AppShell>
 
+
+
 <style>
+  .helper-note {
+    margin: 0.25rem 0 1rem;
+    color: var(--muted);
+  }
+
   .stats-grid,
   .strict-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
     gap: 0.75rem;
+  }
+
+  .command-list {
+    display: grid;
+    gap: 0.5rem;
+  }
+
+  .command-list code {
+    display: block;
+    padding: 0.65rem 0.75rem;
+    border-radius: 0.75rem;
+    background: rgba(148, 163, 184, 0.12);
+    overflow-x: auto;
   }
 </style>

@@ -80,6 +80,16 @@ jobs:
           bash -n scripts/prod-up.sh
           bash -n scripts/prod-check.sh
           bash -n scripts/prod-logs.sh
+          bash -n scripts/prod-backup.sh
+          bash -n scripts/prod-restore.sh
+          bash -n scripts/prod-backup-exports.sh
+          bash -n scripts/prod-volumes-check.sh
+          bash -n scripts/prod-backup-verify.sh
+          bash -n scripts/prod-audit-cleanup.sh
+          bash -n scripts/prod-restore-dry-run.sh
+          bash -n scripts/prod-go-no-go.sh
+          bash -n scripts/prod-monitoring-check.sh
+          bash -n scripts/prod-alerting-test.sh
 
       - name: Validate go-live skip mode
         run: |
@@ -154,6 +164,10 @@ jobs:
       - name: Validate production compose
         run: docker compose --env-file .env.production -f docker-compose.prod.yml config
 
+      - name: Validate production monitoring compose
+        run: |
+          docker compose --env-file .env.production             -f docker-compose.prod.yml             -f docker-compose.monitoring.yml             config
+
       - name: Validate Traefik files
         run: |
           test -f infra/traefik/traefik.yml
@@ -177,6 +191,13 @@ jobs:
 
           if grep -Rni "ci""-""ping" .github README.md docs; then
             echo "Legacy ping workflow references must be removed"
+            exit 1
+          fi
+
+      - name: Monitoring image pinning guard
+        run: |
+          if grep -nE "image: .+:latest" docker-compose.monitoring.yml; then
+            echo "Monitoring compose must not use direct :latest image tags"
             exit 1
           fi
 
