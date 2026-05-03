@@ -182,6 +182,27 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Frontend dependency guard
+        run: |
+          if grep -RniE '"(react|react-dom|framer-motion|next|lucide-react|@react-three/fiber)"' frontend/package.json frontend/package-lock.json; then
+            echo "Forbidden frontend dependency detected. Keep the frontend Svelte native."
+            exit 1
+          fi
+
+      - name: Frontend React syntax guard
+        run: |
+          if find frontend/src -type f \( -name "*.tsx" -o -name "*.jsx" \) | grep .; then
+            echo "JSX/TSX files are forbidden. Keep the frontend Svelte native."
+            exit 1
+          fi
+
+      - name: 21st API key guard
+        run: |
+          if grep -RniE "21st_sk_|API_KEY=.*21st|21ST_DEV_API_KEY" README.md docs frontend scripts .env.example .env.production.example 2>/dev/null; then
+            echo "21st.dev API keys or placeholders must not be committed."
+            exit 1
+          fi
+
       - name: Ensure legacy ping workflow is removed
         run: |
           if [ -f .github/workflows/ci"-"ping.yml ]; then

@@ -28,6 +28,18 @@
   --radius-2xl: 28px;
   --transition-fast: 140ms ease;
   --transition-base: 240ms cubic-bezier(.4,0,.2,1);
+
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-soft: var(--surface-soft);
+  --color-text: var(--text);
+  --color-muted: var(--muted);
+  --color-primary: var(--primary);
+  --color-primary-soft: var(--primary-soft);
+  --color-youtube: #ff0033;
+  --color-tiktok-cyan: #25f4ee;
+  --color-tiktok-pink: #fe2c55;
+  --radius-card: var(--radius-xl);
 }
 html[data-theme='light'] {
   --bg: #f3f6fc; --bg-soft: #e9eef8; --surface: #ffffff; --surface-soft: #f4f7fd; --surface-glass: rgba(255,255,255,.7);
