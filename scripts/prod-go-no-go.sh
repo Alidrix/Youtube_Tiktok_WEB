@@ -45,7 +45,6 @@ if [ "${SKIP_MONITORING_CHECK:-0}" = "1" ]; then
   RESULTS+=("⚠️ Monitoring verification skipped")
 else
   run_check "monitoring check" ./scripts/prod-monitoring-check.sh
-  RESULTS+=("✅ monitoring check OK")
 fi
 
 if [ "${SKIP_ALERTING_TEST:-1}" = "1" ]; then

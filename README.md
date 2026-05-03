@@ -893,13 +893,19 @@ Démarrage :
 docker compose --env-file .env.production \
   -f docker-compose.prod.yml \
   -f docker-compose.monitoring.yml \
-  up -d prometheus alertmanager grafana loki promtail
+  up -d prometheus alertmanager grafana loki promtail node-exporter cadvisor blackbox
 ```
 
 Vérification :
 
 ```bash
 ./scripts/prod-monitoring-check.sh
+```
+
+### Vérification stricte
+
+```bash
+REQUIRE_MONITORING_RUNNING=1 ./scripts/prod-monitoring-check.sh
 ```
 
 ### Test Alertmanager
