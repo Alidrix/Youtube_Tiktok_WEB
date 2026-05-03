@@ -945,3 +945,23 @@ The UI V2 introduces:
 - responsive and accessible UI improvements.
 
 21st.dev was used only as visual inspiration. No React component, JSX/TSX, framer-motion, or API key is committed.
+
+## UI V2 — Brand redesign
+
+The frontend uses a custom Svelte-native visual identity inspired by social analytics and trend radar platforms.
+
+Key files:
+- `frontend/src/lib/styles/tokens.css`
+- `frontend/src/lib/components/brand/`
+- `frontend/src/lib/components/ui/`
+- `frontend/src/lib/components/AppShell.svelte`
+- `frontend/src/lib/components/Sidebar.svelte`
+- `frontend/src/lib/components/Topbar.svelte`
+
+Rules:
+- Svelte native only.
+- No React.
+- No JSX/TSX.
+- No framer-motion.
+- 21st.dev can be used only as visual inspiration.
+- No API key is committed.
