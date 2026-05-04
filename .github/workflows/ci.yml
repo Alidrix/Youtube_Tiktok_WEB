@@ -182,17 +182,23 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Frontend dependency guard
+      - name: Frontend React stack guard
         run: |
-          if grep -RniE '"(react|react-dom|framer-motion|next|lucide-react|@react-three/fiber)"' frontend/package.json frontend/package-lock.json; then
-            echo "Forbidden frontend dependency detected. Keep the frontend Svelte native."
+          grep -q '"react"' frontend/package.json
+          grep -q '"react-dom"' frontend/package.json
+          grep -q '"framer-motion"' frontend/package.json
+
+      - name: Frontend Svelte residue guard
+        run: |
+          if find frontend/src -type f -name '*.svelte' | grep .; then
+            echo "Svelte files must not remain in frontend/src"
             exit 1
           fi
 
-      - name: Frontend React syntax guard
+      - name: Svelte import guard
         run: |
-          if find frontend/src -type f \( -name "*.tsx" -o -name "*.jsx" \) | grep .; then
-            echo "JSX/TSX files are forbidden. Keep the frontend Svelte native."
+          if grep -RniE '@sveltejs/kit|svelte-check' frontend/src frontend/package.json frontend/package-lock.json; then
+            echo "Svelte dependencies/imports are forbidden after migration"
             exit 1
           fi
 
@@ -225,7 +231,9 @@ jobs:
       - name: Alert channel scope guards
         run: |
           if grep -RniE "discord|slack" \
-            frontend/src/routes/alerts \
+            frontend/src/routes \
+            frontend/src/components \
+            frontend/src/lib \
             backend/src/routes/alerts.rs \
             backend/src/services/alerts.rs \
             .env.example \
@@ -234,9 +242,13 @@ jobs:
             exit 1
           fi
 
-          grep -q "telegram" frontend/src/routes/alerts/+page.svelte
           grep -q "TELEGRAM_BOT_TOKEN" .env.example
           grep -q "TELEGRAM_BOT_TOKEN" .env.production.example
+
+          if ! grep -Rqi "telegram" frontend/src/routes frontend/src/components frontend/src/lib; then
+            echo "Telegram must remain visible in the React frontend alert/admin UX."
+            exit 1
+          fi
 
       - name: Platform scope guards
         run: |
@@ -245,14 +257,14 @@ jobs:
 
       - name: Admin ops completeness guards
         run: |
-          grep -q "Tests d'intégration" frontend/src/routes/admin/ops/+page.svelte
-          grep -q "Smoke interne" frontend/src/routes/admin/ops/+page.svelte
-          grep -q "Résultats des tests" frontend/src/routes/admin/ops/+page.svelte
-          grep -q "Logs email" frontend/src/routes/admin/ops/+page.svelte
-          grep -q "Notifications" frontend/src/routes/admin/ops/+page.svelte
-          grep -q "Exports" frontend/src/routes/admin/ops/+page.svelte
-          grep -q "error_message" frontend/src/routes/admin/ops/+page.svelte
-          grep -q "file_url" frontend/src/routes/admin/ops/+page.svelte
+          grep -q "Tests d'intégration" frontend/src/routes/AdminOps.tsx
+          grep -q "Smoke interne" frontend/src/routes/AdminOps.tsx
+          grep -q "Résultats des tests" frontend/src/routes/AdminOps.tsx
+          grep -q "Logs email" frontend/src/routes/AdminOps.tsx
+          grep -q "Notifications" frontend/src/routes/AdminOps.tsx
+          grep -q "Exports" frontend/src/routes/AdminOps.tsx
+          grep -q "error_message" frontend/src/routes/AdminOps.tsx
+          grep -q "file_url" frontend/src/routes/AdminOps.tsx
 
       - name: Admin smoke correctness guards
         run: |
@@ -266,22 +278,22 @@ jobs:
 
       - name: Admin contract guards
         run: |
-          if grep -R "data.jobs.pending_reports" frontend/src/routes/admin; then
+          if grep -R "data.jobs.pending_reports" frontend/src/routes; then
             echo "Frontend admin overview still reads old jobs.pending_reports contract"
             exit 1
           fi
 
-          if grep -R "mrr_cents_estimate" frontend/src/routes/admin; then
+          if grep -R "mrr_cents_estimate" frontend/src/routes; then
             echo "Frontend admin billing still reads old mrr_cents_estimate contract"
             exit 1
           fi
 
-          if grep -R "smtp_configured\|telegram_configured" frontend/src/routes/admin; then
+          if grep -R "smtp_configured\|telegram_configured" frontend/src/routes; then
             echo "Frontend admin ops still reads old smtp_configured/telegram_configured contract"
             exit 1
           fi
 
-          if grep -R "d.postgres\|d.redis\|d.nats\|d.clickhouse" frontend/src/routes/admin/system; then
+          if grep -R "d.postgres\|d.redis\|d.nats\|d.clickhouse" frontend/src/routes; then
             echo "Frontend admin system still reads old flat system contract"
             exit 1
           fi
@@ -293,17 +305,17 @@ jobs:
 
       - name: Admin ops UX guard
         run: |
-          if grep -q "testAdminYoutube" frontend/src/routes/admin/ops/+page.svelte; then
+          if grep -q "testAdminYoutube" frontend/src/routes/AdminOps.tsx; then
             echo "User-facing admin ops button must not display testAdminYoutube"
             exit 1
           fi
 
-          if grep -q "testAdminStripe" frontend/src/routes/admin/ops/+page.svelte; then
+          if grep -q "testAdminStripe" frontend/src/routes/AdminOps.tsx; then
             echo "User-facing admin ops button must not display testAdminStripe"
             exit 1
           fi
 
-          if grep -q "JSON.stringify" frontend/src/routes/admin/ops/+page.svelte; then
+          if grep -q "JSON.stringify" frontend/src/routes/AdminOps.tsx; then
             echo "Admin ops must not display raw JSON.stringify results"
             exit 1
           fi
