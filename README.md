@@ -15,7 +15,7 @@
 <p align="center">
   <img src="https://img.shields.io/badge/Status-SaaS%20MVP-8A2BFF?style=for-the-badge" alt="Status SaaS MVP" />
   <img src="https://img.shields.io/badge/Backend-Rust%20%2F%20Axum-111827?style=for-the-badge&logo=rust" alt="Backend Rust Axum" />
-  <img src="https://img.shields.io/badge/Frontend-SvelteKit-FF3E00?style=for-the-badge&logo=svelte&logoColor=white" alt="Frontend SvelteKit" />
+  <img src="https://img.shields.io/badge/Frontend-React%20%2B%20Vite-61DAFB?style=for-the-badge&logo=react&logoColor=111827" alt="Frontend React + Vite" />
   <img src="https://img.shields.io/badge/Database-PostgreSQL-336791?style=for-the-badge&logo=postgresql&logoColor=white" alt="PostgreSQL" />
   <img src="https://img.shields.io/badge/Cache-Redis-DC382D?style=for-the-badge&logo=redis&logoColor=white" alt="Redis" />
   <img src="https://img.shields.io/badge/Queue-NATS-27AAE1?style=for-the-badge" alt="NATS" />
@@ -109,7 +109,7 @@
 Utilisateur
    │
    ▼
-Frontend SvelteKit ───────► Backend Rust / Axum
+Frontend React + Vite ───────► Backend Rust / Axum
                                   │
                                   ├── PostgreSQL via PgBouncer  → données métier
                                   ├── Redis                     → cache, rate limiting, locks

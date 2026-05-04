@@ -182,17 +182,23 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Frontend dependency guard
+      - name: Frontend React stack guard
         run: |
-          if grep -RniE '"(react|react-dom|framer-motion|next|lucide-react|@react-three/fiber)"' frontend/package.json frontend/package-lock.json; then
-            echo "Forbidden frontend dependency detected. Keep the frontend Svelte native."
+          grep -q '"react"' frontend/package.json
+          grep -q '"react-dom"' frontend/package.json
+          grep -q '"framer-motion"' frontend/package.json
+
+      - name: Frontend Svelte residue guard
+        run: |
+          if find frontend/src -type f -name '*.svelte' | grep .; then
+            echo "Svelte files must not remain in frontend/src"
             exit 1
           fi
 
-      - name: Frontend React syntax guard
+      - name: Svelte import guard
         run: |
-          if find frontend/src -type f \( -name "*.tsx" -o -name "*.jsx" \) | grep .; then
-            echo "JSX/TSX files are forbidden. Keep the frontend Svelte native."
+          if grep -RniE '@sveltejs/kit|svelte-check' frontend/src frontend/package.json frontend/package-lock.json; then
+            echo "Svelte dependencies/imports are forbidden after migration"
             exit 1
           fi
 

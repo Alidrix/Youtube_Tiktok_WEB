@@ -1,2 +1,0 @@
-<script lang="ts">export let title='';export let message='';export let tone:'neutral'|'warning'|'error'='neutral';</script><div class={`empty ${tone}`}><h3>{title}</h3><p>{message}</p></div>
-<style>.empty{padding:1rem;border-radius:var(--radius-lg);border:1px dashed var(--border);background:var(--surface-soft)}h3{margin:0 0 .25rem}p{margin:0;color:var(--muted)}.warning{border-color:var(--warning)}.error{border-color:var(--danger)}</style>
